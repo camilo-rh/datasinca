@@ -23,6 +23,41 @@ Nsust = ['PM25' , 'PM10' ,'NO2' , 'NOx' , 'SO2' , 'O3' ,'CO' , 'NO', 'Dir Viento
 # reg = ['RV', 'RM','RVIII', 'RIX', 'RX' , 'RXI']
 reg = ['RXV', 'RI', 'RII', 'RIII', 'RIV', 'RV', 'RM', 'RVI', 'RVII',
    'RVIII', 'RIX', 'RXIV', 'RX', 'RXI', 'RXII']
+REGIONES = {
+    'XV': 'RXV',
+    'I': 'RI',
+    'II': 'RII',
+    'III': 'RIII',
+    'IV': 'RIV',
+    'V': 'RV',
+    'RM': 'RM',
+    'VI': 'RVI',
+    'VII': 'RVII',
+    'VIII': 'RVIII',
+    'IX': 'RIX',
+    'XIV': 'RXIV',
+    'X': 'RX',
+    'XI': 'RXI',
+    'XII': 'RXII'
+}
+
+REGIONES_NOMBRE = {
+    'Arica y Parinacota': 'RXV',
+    'Tarapacá': 'RI',
+    'Antofagasta': 'RII',
+    'Atacama': 'RIII',
+    'Coquimbo': 'RIV',
+    'Valparaíso': 'RV',
+    'Metropolitana': 'RM',
+    "O'Higgins": 'RVI',
+    'Maule': 'RVII',
+    'Biobío': 'RVIII',
+    'La Araucanía': 'RIX',
+    'Los Ríos': 'RXIV',
+    'Los Lagos': 'RX',
+    'Aysén': 'RXI',
+    'Magallanes': 'RXII'
+}
 comuna = [  # TODAS (frec horaria). Comunas correspondientes a las estaciones en EstacionN y EstacionC
     ['Arica'],  #'RXV'
     ['Alto Hospicio'], # 'RI'
