@@ -1,0 +1,29 @@
+cod_param;nombre_param
+0001;Dióxido de azufre
+0002;Monóxido de nitrógeno
+0003;Dióxido de nitrógeno
+0004;Monóxido de carbono
+0008;Ozono.-
+00Cu;Cu
+00Ni;Ni
+00Pb;Pb
+0CH4;Metano
+0NOX;Óxidos de nitrógeno
+ARSE;As
+CORG;Carbono orgánico
+CTOT;Carbono total
+GLOB;Radiación global
+NMHC;Hidrocarburos no metánicos
+PM10;Material particulado MP 10
+PM1D;Material particulado 10 micrometros discreto
+PM25;Material particulado MP 2,5
+PM2D;Material particulado 2.5 micrometros discreto
+PRES;Presión atmosférica
+RAIN;Precipitaciones
+RHUM;Humedad relativa del aire
+SOL;Radiacion Solar
+TEMP;Temperatura ambiente
+THCM;Hidrocarburos totales
+TRSG;TRS
+WDIR;Dirección del viento
+WSPD;Velocidad del viento

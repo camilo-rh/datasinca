@@ -1,3 +1,6 @@
 __*
 !__init__.py
 .vscode/
+metadata*.csv
+*.ipynb
+test*

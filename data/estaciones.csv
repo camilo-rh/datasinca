@@ -1,0 +1,213 @@
+id_est;cod_est;nombre_est;comuna;id_reg
+1;209;Jardín Infantil Integra;Mejillones;II
+2;211;Iglesia;María Elena;II
+3;218;Villa Caspana;Calama;II
+4;221;Compañía de Bomberos;Mejillones;II
+5;525;ARMAT;Quilpué;V
+6;533;Manzanar;Quillota;V
+7;517;La Calera;Calera;V
+8;405;Camisas;Salamanca;IV
+9;402;Chacay;Los Vilos;IV
+12;227;Servicio Médico Legal;Calama;II
+13;534;La Cruz, Colbún;Calera;V
+14;519;La Cruz, Melón;La Cruz;V
+15;406;El Mauro;Los Vilos;IV
+16;401;Hotel Mina;Salamanca;IV
+17;409;Quelen Alto;Salamanca;IV
+18;903;Padre Las Casas;Padre las Casas;IX
+27;819;MASISA Mapal;San Pedro de la Paz;VIII
+30;705;Teno, ENLASA;Teno;VII
+31;704;Teno, CEMENTOS BIO BIO;Teno;VII
+32;407;Caimanes;Los Vilos;IV
+33;225;Rendic;Antofagasta;II
+38;;Cine Inca;Diego de Almagro;III
+39;203;Escuela E-12;Tocopilla;II
+40;316;Pabellón;Tierra Amarilla;III
+41;514;San Pedro;Quillota;V
+43;804;JUNJI;Hualpén;VIII
+44;;Intelec;Diego de Almagro;III
+45;320;CAP;Diego de Almagro;III
+46;213;Sur;Antofagasta;II
+47;614;Totihue;Requinoa;VI
+49;E05;Fundo La Ribera;Máfil;XIV
+51;206;Sur;Tocopilla;II
+53;706;El Boldo;Curicó;VII
+54;A07;Mirasol;Puerto Montt;X
+58;603;Casas de Peuco;Mostazal;VI
+59;610;Subestación Candelaria;Codegua;VI
+65;608;Sewell;Machalí;VI
+66;207;Ferrocarriles;Mejillones;II
+67;836;CESFAM, Los Ángeles;Los Angeles;VIII
+68;210;Hospital;María Elena;II
+69;220;San José;Calama;II
+70;226;Playa Blanca;Antofagasta;II
+71;216;Paposo;Taltal;II
+72;215;Punto de Máximo Impacto;Taltal;II
+73;502;Terminal Concentrados;Puchuncaví;V
+74;A02;Trapén Norte;Puerto Montt;X
+76;852;Entre Ríos;Nacimiento;VIII
+83;833;Meteorológica, Chiguayante;Chiguayante;VIII
+89;535;Junta de Vecinos;Concón;V
+91;801;San Vicente, Bomberos;Talcahuano;VIII
+93;A03;Trapén Sur;Puerto Montt;X
+94;E02;Vivero Los Castaños;Máfil;XIV
+95;425;La Serena;Coquimbo;IV
+104;807;Indura;Talcahuano;VIII
+105;838;ENAP Price;Hualpén;VIII
+108;219;Aukahuasi;Calama;II
+109;508;Meteorológica Principal;Puchuncaví;V
+110;904;Museo Ferroviario;Temuco;IX
+111;A04;Entre Lagos;Osorno;X
+112;602;San Francisco de Mostazal;Mostazal;VI
+113;601;Codegua;Codegua;VI
+114;321;Doña Ines;Diego de Almagro;III
+115;E06;CESFAM Lago Ranco;Lago Ranco;XIV
+116;D16;Cerrillos I;Cerrillos;M
+118;809;Calabozo;Coronel;VIII
+119;826;Laja;Laja;VIII
+121;305;SM5 ;Huasco;III
+124;217;Hospital del Cobre;Calama;II
+126;E01;Consultorio Máfil;Máfil;XIV
+127;803;Libertad;Talcahuano;VIII
+128;205;Centro;Tocopilla;II
+129;546;Central Quintero;Quintero;V
+130;202;Escuela Gabriela Mistral;Tocopilla;II
+131;537;Chagres Meteorologia;Catemu;V
+132;524;Santa Margarita;Catemu;V
+134;234;Oasis;Calama;II
+135;859;Lota rural;Coronel;VIII
+136;504;Los Maitenes;Puchuncaví;V
+137;404;Coiron;Salamanca;IV
+139;313;San Fernando;Copiapó;III
+140;510;Concón sur;Concón;V
+141;513;Cuerpo de Bomberos ;Quillota;V
+142;515;La Palma;Quillota;V
+144;408;Punta Chungo;Los Vilos;IV
+145;518;Rural 1;Calera;V
+148;415;Urmeneta - Plaza Centenario;Andacollo;IV
+149;D29;Quilicura I;Quilicura;M
+150;412;El Sauce;Andacollo;IV
+152;613;MVC;Requinoa;VI
+154;224;Oncológico;Antofagasta;II
+155;549;Quilpue;Quilpué;V
+156;411;Chepiquilla;Andacollo;IV
+157;117;Alto Hospicio;Alto Hospicio;I
+163;324;EME ME;Huasco;III
+165;522;Catemu;Catemu;V
+166;B05;Vialidad;Aysén;XI
+169;231;Tres Marias;Tocopilla;II
+170;860;Lota urbana;Coronel;VIII
+171;420;Andacollo;Andacollo;IV
+172;251;Super Site;Tocopilla;II
+173;606;Cauquenes;Machalí;VI
+174;550;Valparaiso;Valparaíso;V
+175;309;EME M;Huasco;III
+176;332;Copiapo Sivica;Copiapó;III
+177;511;Colmo;Concón;V
+178;230;Bomberos;Tocopilla;II
+179;329;Huasco II;Huasco;III
+180;E04;La Union;La Unión;XIV
+181;713;Linares;Linares;VII
+182;501;Campiche;Puchuncaví;V
+183;540;Quintero;Quintero;V
+185;509;Concón;Concón;V
+186;901;Las Encinas Temuco;Temuco;IX
+187;307;SM7 ;Freirina;III
+188;548;Ventanas;Puchuncaví;V
+189;832;Balneario Curanilahue;Curanilahue;VIII
+190;D15;Pudahuel (Acreditada);Pudahuel;M
+191;C05;Punta Arenas;Punta Arenas;XII
+192;302;SM2;Huasco;III
+193;512;Las Gaviotas;Concón;V
+194;426;Coquimbo;Coquimbo;IV
+195;830;Liceo Polivalente;Tomé;VIII
+196;314;Paipote;Copiapó;III
+197;D28;Talagante;Talagante;M
+198;A08;Alerce;Puerto Montt;X
+200;505;Puchuncaví;Puchuncaví;V
+201;330;21 de Mayo;Huasco;III
+202;560;Concón MMA;Concón;V
+203;507;Valle Alegre;Quintero;V
+204;539;Centro Quintero;Quintero;V
+205;310;EME F;Huasco;III
+207;233;Club Deportivo 23 de Marzo;Calama;II
+208;547;Loncura;Quintero;V
+209;806;Inpesca;Talcahuano;VIII
+210;521;Lo Campo;Panquehue;V
+211;874;Los Ángeles Oriente;Los Angeles;VIII
+212;611;Rengo;Rengo;VI
+213;870;Lautaro;Nacimiento;VIII
+214;304;SM4 ;Huasco;III
+217;711;Universidad de Talca;Talca;VII
+218;E08;Valdivia 2;Valdivia;XIV
+219;333;Huasco Sivica;Huasco;III
+220;615;Rancagua II;Rancagua;VI
+221;816;Coronel Sur;Coronel;VIII
+222;235;Colegio Pedro Vergara Keller;Calama;II
+223;311;Copiapó;Copiapó;III
+224;312;Tierra Amarilla;Tierra Amarilla;III
+225;604;Coya Población;Machalí;VI
+226;876;Colicheu;Cabrero;VIII
+227;831;Cerro Merquín;Coronel;VIII
+228;D18;Cerro Navia;Cerro Navia;M
+229;A01;Osorno;Osorno;X
+230;710;U.C. Maule;Talca;VII
+232;F01;Arica;Arica;XV
+233;D27;Puente Alto;Puente Alto;M
+234;228;Chiu Chiu;Calama;II
+235;854;Punteras;Chiguayante;VIII
+236;875;21 de mayo;Los Angeles;VIII
+237;905;Ñielol;Temuco;IX
+238;B03;Coyhaique;Coyhaique;XI
+239;D13;Las Condes (Acreditada);Las Condes;M
+240;837;Nueva Libertad;Talcahuano;VIII
+241;802;Consultorio - San Vicente;Talcahuano;VIII
+242;841;Hualqui;Hualqui;VIII
+243;301;SM1 ;Huasco;III
+244;612;San Fernando;San Fernando;VI
+245;818;Club de Empleados;Nacimiento;VIII
+246;605;Cipreses;Machalí;VI
+247;529;Viña del Mar;Viña del Mar;V
+248;315;Los Volcanes;Copiapó;III
+250;609;Rancagua I;Rancagua;VI
+251;506;Sur;Quintero;V
+252;303;SM3 ;Huasco;III
+253;523;Romeral;Catemu;V
+255;204;Sierra Gorda ;Sierra Gorda;II
+257;424;Cuncumen ;Salamanca;IV
+258;306;SM6 ;Freirina;III
+259;237;Antofagasta;Antofagasta;II
+260;D17;El Bosque (Acreditada);El Bosque;M
+261;827;Kingston College;Concepción;VIII
+262;D12;La Florida (Acreditada);La Florida;M
+263;902;Padre Las Casas II;Padre las Casas;IX
+264;B04;Coyhaique II;Coyhaique;XI
+265;308;SM8 ;Freirina;III
+266;532;Los Andes;Los Andes;V
+267;E03;Valdivia;Valdivia;XIV
+268;414;Hospital;Andacollo;IV
+269;709;Curicó;Curicó;VII
+270;201;Gobernación;Tocopilla;II
+271;D30;Quilicura;Quilicura;M
+272;D11;Independencia;Independencia;M
+273;D14;Parque O'Higgins;Santiago;M
+274;222;Escuela E-10;Tocopilla;II
+275;236;Estación Centro;Calama;II
+276;703;La Florida;Talca;VII
+277;805;Bocatoma;Hualpén;VIII
+278;503;La Greda;Puchuncaví;V
+279;252;Juan Jose Latorre;Mejillones;II
+280;878;Coronel Norte;Coronel;VIII
+281;A09;Puerto Varas;Puerto Varas;X
+282;253;Nueva ChiuChiu;Calama;II
+283;881;Escuadron, ENESA;Coronel;VIII
+285;879;Lagunillas, ENEL;Coronel;VIII
+286;880;Escuadron, ENEL;Coronel;VIII
+287;714;Cauquenes Sivica;Cauquenes;VII
+289;D32;La Pintana;La Pintana;M
+290;D35;Cerrillos II;Cerrillos;M
+296;B06;Cochrane;Cochrane;XI
+297;551;Quilpue Gimnasio;Quilpué;V
+298;AA2;Universidad de Los Lagos;Osorno;X
+304;906;Villarrica;Villarrica;IX
+305;334;Chañaral;Chañaral;III

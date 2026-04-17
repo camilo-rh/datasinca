@@ -1,0 +1,245 @@
+import unicodedata
+import datetime
+
+def normalizar_string(s):
+    try:
+        s = unicodedata.normalize('NFD', s)
+    except TypeError:
+        print(s)
+        raise
+        # s = str(s)
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn') # Normalizar tildes
+    return (s.lower().replace(" ", "").replace("_", "")
+            .replace("-", "").replace(",", ".").replace(".", "")
+            .replace("{", "").replace("}", "")).replace("'", "")
+
+def build_param_map(df_parametros):
+    param_map = {}
+
+    for cod_param, row in df_parametros.iterrows():
+        nombre = row['nombre_param']
+
+        param_map[normalizar_string(cod_param)] = cod_param
+        param_map[normalizar_string(nombre)] = cod_param
+
+    # alias útiles
+    param_map.update(dict.fromkeys(['so2','dioxidodeazufre','dioxidoazufre'], '0001'))
+    param_map.update(dict.fromkeys(['no','monoxidonitrogeno','monoxidodenitrogeno'], '0002'))
+    param_map.update(dict.fromkeys(['no2','dioxidonitrogeno','diodenx','diox.nitrogeno'], '0003'))
+    param_map.update(dict.fromkeys(['co','monoxidocarbono','monoxidodecarbono'], '0004'))
+    param_map.update(dict.fromkeys(['o3','ozono'], '0008'))
+    param_map.update(dict.fromkeys(['cobre'], '00Cu'))
+    param_map.update(dict.fromkeys(['niquel'], '00Ni'))
+    param_map.update(dict.fromkeys(['plomo'], '00Pb'))
+    param_map.update(dict.fromkeys(['metano','ch4'], '0CH4'))
+    param_map.update(dict.fromkeys(['nox','oxidosdenitrogeno','oxidosnitrogeno'], '0NOX'))
+    param_map.update(dict.fromkeys(['arsenico'], 'ARSE'))
+    param_map.update(dict.fromkeys(['carbonoorganico'], 'CORG'))
+    param_map.update(dict.fromkeys(['cot','carbonototal'], 'CTOT'))
+    param_map.update(dict.fromkeys(['radglob','radglobal'], 'GLOB'))
+    param_map.update(dict.fromkeys(['hcnm'], 'NMHC'))
+    param_map.update(dict.fromkeys(['mp10','pm10'],'PM10'))
+    param_map.update(dict.fromkeys(['mp10d','pm10d','mp10discreto','pm10discreto'],'PM1D'))
+    param_map.update(dict.fromkeys(['pm25','mp25'],'PM25'))
+    param_map.update(dict.fromkeys(['mp25d','pm25d','mp25discreto','pm25discreto'],'PM2D'))
+    param_map.update(dict.fromkeys(['presion','presatm','presionatm'],'PRES'))
+    param_map.update(dict.fromkeys(['precipitacion','lluvia'],'RAIN'))
+    param_map.update(dict.fromkeys(['rh','hr','humedadrelativa','hum','hume'], 'RHUM'))
+    param_map.update(dict.fromkeys(['radsolar','sol'], 'SOL'))
+    param_map.update(dict.fromkeys(['temp','t','temperatura'],'TEMP'))
+    param_map.update(dict.fromkeys(['hct','thc','hidrocarburototal'],'THCM'))
+    param_map.update(dict.fromkeys(['compuestosdeazufretotalreducido','azufretotalreducido','totalreducedsulfur'],'TRSG'))
+    param_map.update(dict.fromkeys(['wdir','dirviento','dv'], 'WDIR'))
+    param_map.update(dict.fromkeys(['wspd','velviento'], 'WSPD'))
+    
+    return param_map
+
+def build_est_map(df_estaciones):
+    est_map = {}
+
+    duplicados = set(
+        df_estaciones['nombre_est'][ df_estaciones['nombre_est'].duplicated(keep=False) ]
+        )
+    for id_est, row in df_estaciones.iterrows():
+        cod = row['cod_est']
+        nombre = row['nombre_est']
+        comuna = row['comuna']
+
+        if not isinstance(cod, str):
+            # print(f'nombre: {nombre} - cod: {cod} - id: {id_est} - comuna: {comuna}')
+            continue
+        est_map[normalizar_string(cod)] = id_est
+
+        if nombre not in duplicados:
+            est_map[normalizar_string(nombre)] = id_est
+        else:
+            nombre_ext = f"{nombre} ({comuna})"
+            est_map[normalizar_string(nombre_ext)] = id_est
+    return est_map
+
+def build_region_map(df_regiones):
+    reg_map = {}
+
+    for id_reg, row in df_regiones.iterrows():
+        cod_reg = row['cod_reg']
+        nombre = row['nombre_region']
+
+        reg_map[normalizar_string(cod_reg)] = id_reg
+        reg_map[normalizar_string(id_reg)] = id_reg
+        reg_map[normalizar_string(nombre)] = id_reg
+
+    reg_map.update({
+        'rm': 'M',
+        '1': 'I',
+        '2': 'II',
+        '3': 'III',
+        '4': 'IV',
+        '5': 'V',
+        '6': 'VI',
+        '7': 'VII',
+        '8': 'VIII',
+        '9': 'IX',
+        '10': 'X',
+        '11': 'XI',
+        '12': 'XII',
+        '13': 'M',
+        '14': 'XIV',
+        '15': 'XV'
+        })
+
+    return reg_map
+
+def input_region(regiones, df_regiones):
+    if regiones is None:
+        return df_regiones.index.tolist()
+
+    if isinstance(regiones, (str, int)):
+        regiones = [regiones]
+
+    reg_map = build_region_map(df_regiones)
+
+    ids = []
+
+    for r in regiones:
+        if isinstance(r, (str, int)):
+            key = normalizar_string(str(r)).replace('regionde','').replace('region','')
+
+            if key not in reg_map:
+                raise ValueError(f"Región desconocida: {r}")
+
+            ids.append(reg_map[key])
+        else:
+            raise TypeError("Solo strings y enteros soportados, o una lista con ellos")
+
+    return ids
+
+def input_est(estaciones, df_estaciones):
+    id_estaciones = []
+    id_reg_est = set()
+
+    if estaciones is None:
+        return df_estaciones.index.tolist()
+        
+    if isinstance(estaciones, (str, int)):
+        estaciones = [estaciones]
+
+    est_map = build_est_map(df_estaciones)
+
+    for e in estaciones:
+        if isinstance(e, str):
+            key = normalizar_string(e)
+
+            if key not in est_map: # si no se encuentra, comprobar que no es un nombre duplicado (con sufijo de comuna)
+                posibles = df_estaciones.loc[df_estaciones['nombre_est'].apply(normalizar_string) == key, :]
+
+                if len(posibles) > 1:
+                    opciones = [f"{row['nombre_est']} ({row['comuna']})"
+                                for _, row in posibles.iterrows()]
+                    raise ValueError(f"Estación con nombre repetido: {e}. Usa una de estas:\n" +
+                                     "\n".join(opciones))
+
+                raise ValueError(f"Estación desconocida: {e}")
+            
+            id_est = est_map[key]
+        elif isinstance(e, int):
+            if e not in df_estaciones.index:
+                raise ValueError(f"id_est inválido: {e}")
+            id_est = e
+
+        id_reg = df_estaciones.loc[id_est,'id_reg']
+        id_reg_est.add(id_reg)
+        id_estaciones.append(id_est)
+    return id_estaciones, list(id_reg_est)
+
+def input_param(parametros, df_parametros):
+    param_map = build_param_map(df_parametros)
+
+    if parametros is None:
+        return df_parametros.index.tolist()
+
+    if isinstance(parametros, str):
+        parametros = [parametros]
+
+    codigos = []
+
+    for p in parametros:
+        if isinstance(p, str):
+            key = normalizar_string(p)
+            if key not in param_map:
+                raise ValueError(f"Parámetro desconocido: {p}")
+            codigos.append(param_map[key])
+
+        else:
+            raise TypeError("Solo strings soportados por ahora")
+
+    return codigos
+
+def input_fecha(fecha):
+    today = datetime.date.today()
+
+    # --- datetime/date ---
+    if isinstance(fecha, datetime.datetime):
+        fecha = fecha.date()
+    elif isinstance(fecha, datetime.date):
+        pass
+
+    # --- int (días relativos) ---
+    elif isinstance(fecha, int):
+        if fecha <= 0:
+            fecha = today + datetime.timedelta(days=fecha)
+        elif fecha > 0:
+            raise Exception('No puedes ingresar un entero positivo (fecha futura)')
+
+    # --- string ---
+    elif isinstance(fecha, str):
+        fecha = fecha.strip()
+        if '/' in fecha:
+            parts = fecha.split('/')
+            if len(parts) != 3:
+                raise ValueError("Formato de fecha inválido")
+
+            d, m, y = parts
+            if len(y) == 2:
+                fmt = '%d/%m/%y'
+            elif len(y) == 4:
+                fmt = '%d/%m/%Y'
+            else:
+                raise ValueError("Formato de año inválido")
+            fecha = datetime.datetime.strptime(fecha, fmt).date()
+
+        elif fecha.isdigit():
+            if len(fecha) == 6:
+                fecha = datetime.datetime.strptime(fecha, '%d%m%y').date()
+            elif len(fecha) == 8:
+                fecha = datetime.datetime.strptime(fecha, '%d%m%Y').date()
+            else:
+                raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+        else:
+            raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+    else:
+        raise TypeError("Tipo de fecha no soportado")
+
+    if fecha > today:
+        raise ValueError('No se permiten fechas futuras')
+
+    return fecha
