@@ -1,6 +1,5 @@
-__*
-!__init__.py
+__pycache__/
 .vscode/
-metadata*.csv
-*.ipynb
-test*
+dev/
+
+*.egg-info/

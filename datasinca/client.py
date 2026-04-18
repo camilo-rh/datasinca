@@ -12,11 +12,11 @@ import pandas as pd
 from termcolor import cprint
 import datetime
 import re
-from datasinca.downloader import Transport, descargar_serie, URL_ESTACION
-from datasinca.parser import procesar_request, get_plot_vars, remcol
-from datasinca.models import DataSINCA
-from datasinca.inputs import input_param, input_fecha, input_region, input_est
-from datasinca.metadata import load_metadata
+from .downloader import Transport, descargar_serie, URL_ESTACION
+from .parser import procesar_request, get_plot_vars, remcol
+from .models import DataSINCA
+from .inputs import input_param, input_fecha, input_region, input_est
+from .metadata import load_metadata
 
 class Sinca:
     def __init__(self, region=None, estacion=None, parametro=None, inicio=None,
@@ -37,6 +37,7 @@ class Sinca:
         self.inicio = inicio
         self.fin = fin
         self.altura = altura
+        self._external_transport = transport is not None
         self.transport = transport or Transport()
         self.force = force
 
@@ -72,7 +73,8 @@ class Sinca:
             id_reg = row['id_reg']
             cod_reg = self._regiones.loc[id_reg,'cod_reg']
 
-            print(f'{nombre_est} - {nombre_comuna}')
+            print(f'{nombre_est} - {nombre_comuna} - ', end='')
+            print(f'URL: {URL_ESTACION}{id_est}')
             mensaje = self._get_mensaje_estacion(id_est)
             if mensaje:
                 cprint('Mensaje de la estación ' + nombre_est, 'red', attrs=['bold'])
@@ -96,8 +98,7 @@ class Sinca:
                     continue
                 # validación de contenido
                 if req.text.startswith("psgraph: Could not load macro: Can't open macro file"):
-                    cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {nombre_param} en {nombre_est}', 'white', 'on_red', attrs=['bold'], end=' ')
-                    print(f'URL: {URL_ESTACION}{id_est}')
+                    cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {nombre_param} en {nombre_est}', 'red', attrs=['bold'])
                     continue
                 print('descarga lista')
                 df_raw = procesar_request(req)
@@ -131,6 +132,10 @@ class Sinca:
             if hasattr(self, key):
                 setattr(self, key, value)
     
+    def close(self):
+        if not self._external_transport and self.transport:
+            self.transport.close()
+
     def _build_params(self):
         return {
             'inicio': self._inicio,
@@ -266,9 +271,9 @@ class Sinca:
         
         if parametro:
             cod_params = input_param(parametro, self._parametros)
-        # si se configuró region o estacion, y no hay parametros configurados,
+        # si se está configurando region o estacion, y no parametro, entonces
         # tomar todos los de las estaciones configuradas
-        elif (region or estacion) and self._cod_params is None:
+        elif (region or estacion) and parametro is None:
                 cod_params = self._series.loc[(id_estaciones, slice(None)), :].index.get_level_values(1).tolist()
                 cod_params = list(set(cod_params))
         else:

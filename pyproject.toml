@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datasinca"
+version = "0.1.0"
+description = "API para acceder a datos SINCA"
+authors = [
+    {name = "Camilo Ramírez Herrera"} 
+]
+dependencies = [
+    "pandas",
+    "requests",
+    "termcolor"
+]
+
+[tool.setuptools.packages.find]
+include = ["datasinca*"]
