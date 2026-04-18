@@ -1,8 +1,10 @@
 import pandas as pd
 import re
 
-def procesar_request(req):
-    reqt = req.text[req.text.find('#DATA') + 6:req.text.find('EOF')].replace(' ','')
+from termcolor import cprint
+
+def parse_response(req_text):
+    reqt = req_text[req_text.find('#DATA') + 6:req_text.find('EOF')].replace(' ','')
     reqsplit = [x.split(',') for x in reqt.split('\n')]
     df = pd.DataFrame(reqsplit)
     index = pd.to_datetime( # índice con columnas 'fecha' y 'hora'
@@ -44,3 +46,16 @@ def remcol(df,columname, plot_vars):
         return serie_param, serie_validez
     else:
         raise ValueError("Número inesperado de variables en el header. Se esperaban 1 o 3.")
+    
+
+def procesar_request(req_text, columna):
+    # validación de contenido
+    if req_text.startswith("psgraph: Could not load macro: Can't open macro file"):
+        cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {columna[2]} en {columna[1]}', 'red', attrs=['bold'])
+        return None, None, None
+    df_raw = parse_response(req_text)
+    plot_vars = get_plot_vars(req_text) # buscar descripción de columnas originales en metadata del encabezado
+    serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
+    match = re.search(r'\([^)]*', plot_vars[0]) # extraer unidad (ej: "ug/m3")
+    unidad = match[0][1:] if match else None
+    return serie_datos, serie_validez, unidad

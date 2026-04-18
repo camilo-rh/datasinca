@@ -82,6 +82,7 @@ class Sinca:
 
             for cod_param in cod_params:
                 nombre_param = self._parametros.loc[cod_param,'nombre_param']
+                columna = (nombre_comuna, nombre_est, nombre_param) # clave de la serie (MultiIndex)
                 try:
                     print(f'\t{nombre_param}', end=' ... ', flush=True)
                     req = descargar_serie(
@@ -96,20 +97,12 @@ class Sinca:
                 except requests.exceptions.ConnectionError:
                     cprint(f'No se pudo conectar a SINCA para {nombre_param} en {nombre_est}', 'white', 'on_blue')
                     continue
-                # validación de contenido
-                if req.text.startswith("psgraph: Could not load macro: Can't open macro file"):
-                    cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {nombre_param} en {nombre_est}', 'red', attrs=['bold'])
-                    continue
-                print('descarga lista')
-                df_raw = procesar_request(req)
-                plot_vars = get_plot_vars(req.text) # buscar descripción de columnas originales en metadata del encabezado
-                match = re.search(r'\([^)]*', plot_vars[0]) # extraer unidad (ej: "ug/m3")
-                unidad = match[0][1:] if match else None
-                columna = (nombre_comuna, nombre_est, nombre_param) # clave de la serie (MultiIndex)
+
+                serie_datos, serie_validez, unidad = procesar_request(req.text, columna)
+                if serie_datos is None:
+                    continue                
+                
                 unidades[columna] = unidad
-
-                serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
-
                 df_datos.append(serie_datos) # acumular series
                 df_validez.append(serie_validez)
 
@@ -117,13 +110,12 @@ class Sinca:
         if df_datos:
             df_datos = pd.concat(df_datos, axis=1)
             df_validez = pd.concat(df_validez, axis=1)
+            # nombres de niveles de columnas (MultiIndex)
+            df_datos.columns.names = column_names
+            df_validez.columns.names = column_names
         else:
             df_datos = pd.DataFrame()
             df_validez = pd.DataFrame()
-
-        # nombres de niveles de columnas (MultiIndex)
-        df_datos.columns.names = column_names
-        df_validez.columns.names = column_names
 
         return DataSINCA(df_datos, df_validez, unidades)
     
@@ -258,17 +250,25 @@ class Sinca:
         super().__setattr__(name, value)
 
     def _resolve_reg_est_param(self, region=None, estacion=None, parametro=None):
-        if region is not None:
+        if region is not None and estacion is not None:
+            id_regiones = input_region(region, self._regiones)
+            id_estaciones, id_reg_est = input_est(estacion, self._estaciones)
+            if not set(id_reg_est).issubset(set(id_regiones)):
+                raise ValueError(f"Las estaciones {estacion} no pertenecen a las regiones {region}")
+        elif region is not None:
             id_regiones = input_region(region, self._regiones)
             mask = self._estaciones['id_reg'].isin(id_regiones)
             id_estaciones = self._estaciones[mask].index.tolist()
-
-        if estacion is not None:
+        elif estacion is not None:
             id_estaciones, id_reg_est = input_est(estacion, self._estaciones)
 
             # en cualquier caso, tomar solo las regiones de las estaciones configuradas
             id_regiones = id_reg_est
+        else:
+            id_regiones = getattr(self, "_id_regiones", None)
+            id_estaciones = getattr(self, "_id_estaciones", None)
         
+
         if parametro:
             cod_params = input_param(parametro, self._parametros)
         # si se está configurando region o estacion, y no parametro, entonces
@@ -278,10 +278,6 @@ class Sinca:
                 cod_params = list(set(cod_params))
         else:
             cod_params = getattr(self, "_cod_params", None)
-
-        if estacion is None and region is None:
-            id_estaciones = getattr(self, "_id_estaciones", None)
-            id_regiones = getattr(self, "_id_regiones", None)
 
         return id_regiones, id_estaciones, cod_params
     
