@@ -1,6 +1,177 @@
 import unicodedata
 import datetime
 
+
+MUESTREOS_VALIDOS = {'horario', 'diario', 'discreto'}
+AGREGACIONES_VALIDAS = {'horario', 'diario', 'mensual', 'trimestral', 'anual'}
+
+def input_muestreo(muestreo):
+    if muestreo is None:
+        muestreo = 'horario' # valor por defecto
+    elif muestreo not in MUESTREOS_VALIDOS:
+        raise ValueError(f"Muestreo no válido: {muestreo}")
+    return muestreo
+
+def input_agregacion(agregacion):
+    if agregacion is not None and agregacion not in AGREGACIONES_VALIDAS:
+        raise ValueError(f"Agregación no válida: {agregacion}")
+    return agregacion
+
+def input_altura(altura):
+    if isinstance(altura, list) and all(isinstance(a, int) for a in altura):
+        if any(a < 0 for a in altura):
+            raise ValueError("Las alturas no pueden ser negativas")
+        return altura
+    elif isinstance(altura, int):
+        if altura < 0:
+            raise ValueError("La altura no puede ser negativa")
+        return [altura]
+    elif isinstance(altura, str) and altura.lower() == 's/i':
+        return ['S/I']
+    elif altura is None:
+        return None
+    raise ValueError(f"Altura no válida: {altura} - debe ser un entero, 'S/I', una lista de ellos, o None")
+
+def input_region(regiones, df_regiones):
+    if regiones is None:
+        return df_regiones.index.tolist()
+
+    if isinstance(regiones, (str, int)):
+        regiones = [regiones]
+
+    reg_map = build_region_map(df_regiones)
+
+    ids = []
+
+    for r in regiones:
+        if isinstance(r, (str, int)):
+            key = normalizar_string(str(r)).replace('regionde','').replace('region','')
+
+            if key not in reg_map:
+                raise ValueError(f"Región desconocida: {r}")
+
+            ids.append(reg_map[key])
+        else:
+            raise TypeError("Solo strings y enteros soportados, o una lista con ellos")
+
+    return ids
+
+def input_est(estaciones, df_estaciones):
+    id_estaciones = []
+    id_reg_est = set()
+
+    if estaciones is None:
+        return df_estaciones.index.tolist()
+        
+    if isinstance(estaciones, (str, int)):
+        estaciones = [estaciones]
+
+    est_map = build_est_map(df_estaciones)
+
+    for e in estaciones:
+        if isinstance(e, str):
+            key = normalizar_string(e)
+
+            if key not in est_map: # si no se encuentra, comprobar que no es un nombre duplicado (con sufijo de comuna)
+                posibles = df_estaciones.loc[df_estaciones['nombre_est'].apply(normalizar_string) == key, :]
+
+                if len(posibles) > 1:
+                    opciones = [f"{row['nombre_est']} ({row['comuna']})"
+                                for _, row in posibles.iterrows()]
+                    raise ValueError(f"Estación con nombre repetido: {e}. Usa una de estas:\n" +
+                                     "\n".join(opciones))
+
+                raise ValueError(f"Estación desconocida: {e}")
+            
+            id_est = est_map[key]
+        elif isinstance(e, int):
+            if e not in df_estaciones.index:
+                raise ValueError(f"id_est inválido: {e}")
+            id_est = e
+
+        id_reg = df_estaciones.loc[id_est,'id_reg']
+        id_reg_est.add(id_reg)
+        id_estaciones.append(id_est)
+    return id_estaciones, list(id_reg_est)
+
+def input_param(parametros, df_parametros):
+    param_map = build_param_map(df_parametros)
+
+    if parametros is None:
+        return df_parametros.index.tolist()
+
+    if isinstance(parametros, str):
+        parametros = [parametros]
+
+    codigos = []
+
+    for p in parametros:
+        if isinstance(p, str):
+            key = normalizar_string(p)
+            if key not in param_map:
+                raise ValueError(f"Parámetro desconocido: {p}")
+            codigos.append(param_map[key])
+
+        else:
+            raise TypeError("Solo strings soportados por ahora")
+
+    return codigos
+
+def input_fecha(fecha):
+    today = datetime.date.today()
+
+    if fecha is None:
+            fecha = datetime.date.today()
+
+    # --- datetime/date ---
+    if isinstance(fecha, datetime.datetime):
+        fecha = fecha.date()
+    elif isinstance(fecha, datetime.date):
+        pass
+
+    # --- int (días relativos) ---
+    elif isinstance(fecha, int):
+        if fecha <= 0:
+            fecha = today + datetime.timedelta(days=fecha)
+        elif fecha > 0:
+            raise Exception('No puedes ingresar un entero positivo (fecha futura)')
+
+    # --- string ---
+    elif isinstance(fecha, str):
+        fecha = fecha.strip()
+        if '/' in fecha:
+            parts = fecha.split('/')
+            if len(parts) != 3:
+                raise ValueError("Formato de fecha inválido")
+
+            d, m, y = parts
+            if len(y) == 2:
+                fmt = '%d/%m/%y'
+            elif len(y) == 4:
+                fmt = '%d/%m/%Y'
+            else:
+                raise ValueError("Formato de año inválido")
+            fecha = datetime.datetime.strptime(fecha, fmt).date()
+
+        elif fecha.isdigit():
+            if len(fecha) == 6:
+                fecha = datetime.datetime.strptime(fecha, '%d%m%y').date()
+            elif len(fecha) == 8:
+                fecha = datetime.datetime.strptime(fecha, '%d%m%Y').date()
+            else:
+                raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+        else:
+            raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+    else:
+        raise TypeError("Tipo de fecha no soportado")
+
+    if fecha > today:
+        raise ValueError('No se permiten fechas futuras')
+
+    return fecha
+
+
+
 def normalizar_string(s):
     try:
         s = unicodedata.normalize('NFD', s)
@@ -108,138 +279,3 @@ def build_region_map(df_regiones):
         })
 
     return reg_map
-
-def input_region(regiones, df_regiones):
-    if regiones is None:
-        return df_regiones.index.tolist()
-
-    if isinstance(regiones, (str, int)):
-        regiones = [regiones]
-
-    reg_map = build_region_map(df_regiones)
-
-    ids = []
-
-    for r in regiones:
-        if isinstance(r, (str, int)):
-            key = normalizar_string(str(r)).replace('regionde','').replace('region','')
-
-            if key not in reg_map:
-                raise ValueError(f"Región desconocida: {r}")
-
-            ids.append(reg_map[key])
-        else:
-            raise TypeError("Solo strings y enteros soportados, o una lista con ellos")
-
-    return ids
-
-def input_est(estaciones, df_estaciones):
-    id_estaciones = []
-    id_reg_est = set()
-
-    if estaciones is None:
-        return df_estaciones.index.tolist()
-        
-    if isinstance(estaciones, (str, int)):
-        estaciones = [estaciones]
-
-    est_map = build_est_map(df_estaciones)
-
-    for e in estaciones:
-        if isinstance(e, str):
-            key = normalizar_string(e)
-
-            if key not in est_map: # si no se encuentra, comprobar que no es un nombre duplicado (con sufijo de comuna)
-                posibles = df_estaciones.loc[df_estaciones['nombre_est'].apply(normalizar_string) == key, :]
-
-                if len(posibles) > 1:
-                    opciones = [f"{row['nombre_est']} ({row['comuna']})"
-                                for _, row in posibles.iterrows()]
-                    raise ValueError(f"Estación con nombre repetido: {e}. Usa una de estas:\n" +
-                                     "\n".join(opciones))
-
-                raise ValueError(f"Estación desconocida: {e}")
-            
-            id_est = est_map[key]
-        elif isinstance(e, int):
-            if e not in df_estaciones.index:
-                raise ValueError(f"id_est inválido: {e}")
-            id_est = e
-
-        id_reg = df_estaciones.loc[id_est,'id_reg']
-        id_reg_est.add(id_reg)
-        id_estaciones.append(id_est)
-    return id_estaciones, list(id_reg_est)
-
-def input_param(parametros, df_parametros):
-    param_map = build_param_map(df_parametros)
-
-    if parametros is None:
-        return df_parametros.index.tolist()
-
-    if isinstance(parametros, str):
-        parametros = [parametros]
-
-    codigos = []
-
-    for p in parametros:
-        if isinstance(p, str):
-            key = normalizar_string(p)
-            if key not in param_map:
-                raise ValueError(f"Parámetro desconocido: {p}")
-            codigos.append(param_map[key])
-
-        else:
-            raise TypeError("Solo strings soportados por ahora")
-
-    return codigos
-
-def input_fecha(fecha):
-    today = datetime.date.today()
-
-    # --- datetime/date ---
-    if isinstance(fecha, datetime.datetime):
-        fecha = fecha.date()
-    elif isinstance(fecha, datetime.date):
-        pass
-
-    # --- int (días relativos) ---
-    elif isinstance(fecha, int):
-        if fecha <= 0:
-            fecha = today + datetime.timedelta(days=fecha)
-        elif fecha > 0:
-            raise Exception('No puedes ingresar un entero positivo (fecha futura)')
-
-    # --- string ---
-    elif isinstance(fecha, str):
-        fecha = fecha.strip()
-        if '/' in fecha:
-            parts = fecha.split('/')
-            if len(parts) != 3:
-                raise ValueError("Formato de fecha inválido")
-
-            d, m, y = parts
-            if len(y) == 2:
-                fmt = '%d/%m/%y'
-            elif len(y) == 4:
-                fmt = '%d/%m/%Y'
-            else:
-                raise ValueError("Formato de año inválido")
-            fecha = datetime.datetime.strptime(fecha, fmt).date()
-
-        elif fecha.isdigit():
-            if len(fecha) == 6:
-                fecha = datetime.datetime.strptime(fecha, '%d%m%y').date()
-            elif len(fecha) == 8:
-                fecha = datetime.datetime.strptime(fecha, '%d%m%Y').date()
-            else:
-                raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
-        else:
-            raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
-    else:
-        raise TypeError("Tipo de fecha no soportado")
-
-    if fecha > today:
-        raise ValueError('No se permiten fechas futuras')
-
-    return fecha

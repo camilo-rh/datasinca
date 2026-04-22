@@ -10,36 +10,43 @@ Created on Thu Jul 30 00:25:28 2020
 import requests
 import pandas as pd
 from termcolor import cprint
-import datetime
 import re
-from .downloader import Transport, descargar_serie, URL_ESTACION
-from .parser import procesar_request, get_plot_vars, remcol
-from .models import DataSINCA
-from .inputs import input_param, input_fecha, input_region, input_est
 from .metadata import load_metadata
+from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo, input_agregacion
+from .data.validators import _xval_estacion, _xval_parametro, _xval_altura
+from .downloader import Transport, descargar_serie, URL_ESTACION
+from .parser import procesar_request
+from .models import DataSINCA
+
+
 
 class Sinca:
     def __init__(self, region=None, estacion=None, parametro=None, inicio=None,
-                 fin=None, altura=0, transport=None, data_path=None, force=False):
+                 fin=None, altura=None, muestreo='horario', agregacion=None, transport=None, data_path=None):
 
         regiones, estaciones, parametros, series = load_metadata(data_path)
 
         self._regiones = regiones
         self._estaciones = estaciones
         self._parametros = parametros
-        self._series = series
-        
-        self._set_reg_est_par(None, None, None)
-        if region is not None or estacion is not None or parametro is not None:
-            id_regiones, id_estaciones, cod_params = self._resolve_reg_est_param(region, estacion, parametro)
-            self._set_reg_est_par(id_regiones, id_estaciones, cod_params)
+        self._series = (series
+                        # .merge(estaciones, on='id_est', how='left')
+                        # .merge(parametros, on='cod_param', how='left')
+                        )
+
+        self._set_variables(None, None, None, None, series.copy())
+
+        if any([region, estacion, parametro, altura]):
+            id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
+            self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
+
 
         self.inicio = inicio
         self.fin = fin
-        self.altura = altura
+        self.muestreo = muestreo
+        self.agregacion = agregacion
         self._external_transport = transport is not None
         self.transport = transport or Transport()
-        self.force = force
 
         self._mensajes_cache = {}
 
@@ -47,64 +54,60 @@ class Sinca:
         kwargs = self._normalizar_inputs(kwargs)
         inputs = {**self._build_params(), **kwargs}
 
-        inicio, fin, id_regiones, id_estaciones, cod_params, altura, transport, force = self._parse_inputs(inputs)
-        n_est = len(id_estaciones)
-        n_param = len(cod_params)
-        if n_est * n_param > 50 and not force:
-            raise ValueError(
-                f"Descarga grande: {n_est} estaciones x {n_param} parámetros.\n"
-                "\tUsa descarga(force=True) para esta llamada\n"
-                "\to inicializa Sinca(force=True) para permitirlo siempre"
-            )
+        inicio, fin, series_sel, muestreo, agregacion, transport = self._parse_inputs(inputs)
 
         cprint(f'Descarga de datos SINCA desde {inicio.strftime('%d/%m/%Y')} hasta {fin.strftime('%d/%m/%Y')}', attrs=['bold'])
         inicio = inicio.strftime('%y%m%d')
         fin = fin.strftime('%y%m%d')
 
-        column_names = ['comuna','estacion','parametro']
+        column_names = ['comuna','estacion','parametro','altura']
         df_datos = []
         df_validez = []
         unidades = {}
-        for id_est in id_estaciones:
-            row = self._estaciones.loc[id_est]
-            nombre_est = row['nombre_est']
-            cod_est = row['cod_est']
-            nombre_comuna = row['comuna']
-            id_reg = row['id_reg']
+
+        for (id_est, cod_param), row_serie in series_sel.iterrows():
+            row_est = self._estaciones.loc[id_est]
+            nombre_est = row_est['nombre_est']
+            cod_est = row_est['cod_est']
+            nombre_comuna = row_est['comuna']
+            id_reg = row_est['id_reg']
             cod_reg = self._regiones.loc[id_reg,'cod_reg']
 
-            print(f'{nombre_est} - {nombre_comuna} - ', end='')
+            nombre_param = self._parametros.loc[cod_param,'nombre_param']
+            altura_actual = row_serie['altura']
+            columna = (nombre_comuna, nombre_est, nombre_param, altura_actual) # clave de la serie (MultiIndex)
+            print(f'{nombre_est} - {nombre_comuna} - {nombre_param} (altura: {altura_actual}) - ', end='')
             print(f'URL: {URL_ESTACION}{id_est}')
             mensaje = self._get_mensaje_estacion(id_est)
             if mensaje:
                 cprint('Mensaje de la estación ' + nombre_est, 'red', attrs=['bold'])
                 cprint(mensaje,'red',attrs=['bold'])
+            try:
+                req = descargar_serie(
+                    inicio=inicio,
+                    fin=fin,
+                    cod_reg=cod_reg,
+                    cod_param=cod_param,
+                    cod_est=cod_est,
+                    altura=altura_actual,
+                    muestreo=muestreo,
+                    agregacion=agregacion,
+                    transport=transport
+                )
+            except requests.exceptions.ConnectionError:
+                cprint(f'No se pudo conectar a SINCA para {nombre_param} en {nombre_est}', 'white', 'on_blue')
+                continue
+            print('Descargado, procesando ... ', end='', flush=True)
+            serie_datos, serie_validez, unidad = procesar_request(req.text, columna)
+            if serie_datos is None:
+                cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {columna[2]} en {columna[1]}', 'red', attrs=['bold'])
+                continue
 
-            for cod_param in cod_params:
-                nombre_param = self._parametros.loc[cod_param,'nombre_param']
-                columna = (nombre_comuna, nombre_est, nombre_param) # clave de la serie (MultiIndex)
-                try:
-                    print(f'\t{nombre_param}', end=' ... ', flush=True)
-                    req = descargar_serie(
-                        inicio=inicio,
-                        fin=fin,
-                        cod_reg=cod_reg,
-                        cod_param=cod_param,
-                        cod_est=cod_est,
-                        altura=altura,
-                        transport=transport
-                    )
-                except requests.exceptions.ConnectionError:
-                    cprint(f'No se pudo conectar a SINCA para {nombre_param} en {nombre_est}', 'white', 'on_blue')
-                    continue
+            print('Procesado')
+            unidades[columna] = unidad
+            df_datos.append(serie_datos) # acumular series
+            df_validez.append(serie_validez)
 
-                serie_datos, serie_validez, unidad = procesar_request(req.text, columna)
-                if serie_datos is None:
-                    continue                
-                
-                unidades[columna] = unidad
-                df_datos.append(serie_datos) # acumular series
-                df_validez.append(serie_validez)
 
         # concatenar series datos y validez en dataframes
         if df_datos:
@@ -136,48 +139,57 @@ class Sinca:
             'id_estaciones': self._id_estaciones,
             'cod_params': self._cod_params,
             'altura': self.altura,
+            'series_sel': self._series_sel,
+            'muestreo': self.muestreo,
+            'agregacion': self.agregacion,
             'transport': self.transport,
-            'force': self.force
             }
     
-    def _normalizar_inputs(self, kwargs):
-        inputs = kwargs.copy()
-        for key in ['region', 'estacion', 'parametro']:
-            if key not in inputs:
-                inputs[key] = None
+    def _normalizar_inputs(self, inputs):
+        norm = inputs.copy()
+        region = norm.setdefault('region')
+        estacion = norm.setdefault('estacion')
+        parametro = norm.setdefault('parametro')
+        altura = norm.setdefault('altura')
 
-        region, estacion, parametro = inputs['region'], inputs['estacion'], inputs['parametro']
-        id_regiones, id_estaciones, cod_params = self._resolve_reg_est_param(region, estacion, parametro)
-        inputs['id_regiones'] = id_regiones
-        inputs['id_estaciones'] = id_estaciones
-        inputs['cod_params'] = cod_params
-        del inputs['region'], inputs['estacion'], inputs['parametro']
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
+        norm['id_regiones'] = id_regiones
+        norm['id_estaciones'] = id_estaciones
+        norm['cod_params'] = cod_params
+        norm['alturas'] = alturas
+        norm['series_sel'] = series_sel
+        del norm['region'], norm['estacion'], norm['parametro'], norm['altura']
 
-        for key, value in inputs.items():
+        for key, value in norm.items():
             if key in ['inicio', 'fin']:
-                inputs[key] = input_fecha(value)
-            elif key == 'altura':
-                inputs['altura'] = value
+                norm[key] = input_fecha(value)
+            elif key == 'muestreo':
+                norm['muestreo'] = input_muestreo(value)
+            elif key == 'agregacion':
+                norm['agregacion'] = input_agregacion(value)
             elif key == 'transport':
-                inputs['transport'] = value
-            elif key == 'force':
-                inputs['force'] = value
-            elif key in ['id_regiones', 'id_estaciones', 'cod_params']:
+                pass
+            elif key in ['id_regiones', 'id_estaciones', 'cod_params', 'alturas', 'series_sel']:
                 pass
             else:
-                raise ValueError(f"Variable de entrada desconocida: {key}")                
-        return inputs
+                raise ValueError(f"Variable de entrada desconocida: {key}")
+            
+            if value is None: # estos se reemplazarán por defaults en el constructor, no deben quedar como None
+                del norm[key]
+        return norm
     
     def _parse_inputs(self, inputs):
         inicio = inputs['inicio']
         fin = inputs['fin']
-        id_regiones = inputs['id_regiones']
-        id_estaciones = inputs['id_estaciones']
-        cod_params = inputs['cod_params']
-        altura = inputs['altura']
+        # id_regiones = inputs['id_regiones']
+        # id_estaciones = inputs['id_estaciones']
+        # cod_params = inputs['cod_params']
+        # alturas = inputs['alturas']
+        series_sel = inputs['series_sel']
+        muestreo = inputs['muestreo']
+        agregacion = inputs['agregacion']
         transport = inputs['transport']
-        force = inputs['force']
-        return inicio, fin, id_regiones, id_estaciones, cod_params, altura, transport, force
+        return inicio, fin, series_sel, muestreo, agregacion, transport
     
     def _get_mensaje_estacion(self, id_estacion):
         text = self.transport.get(URL_ESTACION + str(id_estacion)).text
@@ -197,8 +209,6 @@ class Sinca:
 
     @inicio.setter
     def inicio(self, value):
-        if value is None:
-            value = datetime.date.today()
         self._inicio = input_fecha(value)
 
     @property
@@ -207,8 +217,6 @@ class Sinca:
 
     @fin.setter
     def fin(self, value):
-        if value is None:
-            value = datetime.date.today()
         self._fin = input_fecha(value)
 
     @property
@@ -217,8 +225,8 @@ class Sinca:
 
     @region.setter
     def region(self, value):
-        id_regiones, id_estaciones, cod_params = self._resolve_reg_est_param(region=value)
-        self._set_reg_est_par(id_regiones, id_estaciones, cod_params)
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region=value)
+        self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
 
     @property
     def estacion(self):
@@ -226,17 +234,42 @@ class Sinca:
 
     @estacion.setter
     def estacion(self, value):
-        id_regiones, id_estaciones, cod_params = self._resolve_reg_est_param(estacion=value)
-        self._set_reg_est_par(id_regiones, id_estaciones, cod_params)
-    
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(estacion=value)
+        self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
+
     @property
     def parametro(self):
         return self._nombre_params
 
     @parametro.setter
     def parametro(self, value):
-        id_regiones, id_estaciones, cod_params = self._resolve_reg_est_param(parametro=value)
-        self._set_reg_est_par(id_regiones, id_estaciones, cod_params)
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(parametro=value)
+        self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
+
+    @property
+    def altura(self):
+        return self._altura
+
+    @altura.setter
+    def altura(self, value):
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(altura=value)
+        self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
+
+    @property
+    def muestreo(self):
+        return self._muestreo
+
+    @muestreo.setter
+    def muestreo(self, value):
+        self._muestreo = input_muestreo(value)
+
+    @property
+    def agregacion(self):
+        return self._agregacion
+
+    @agregacion.setter
+    def agregacion(self, value):
+        self._agregacion = input_agregacion(value)
 
     def __setattr__(self, name, value):
         cls = type(self)
@@ -249,39 +282,69 @@ class Sinca:
             raise AttributeError(f"No puedes sobrescribir '{name}'")
         super().__setattr__(name, value)
 
-    def _resolve_reg_est_param(self, region=None, estacion=None, parametro=None):
-        if region is not None and estacion is not None:
-            id_regiones = input_region(region, self._regiones)
-            id_estaciones, id_reg_est = input_est(estacion, self._estaciones)
-            if not set(id_reg_est).issubset(set(id_regiones)):
-                raise ValueError(f"Las estaciones {estacion} no pertenecen a las regiones {region}")
+    def _resolve_series(self, region=None, estacion=None, parametro=None, altura=None):
+        
+        series_sel = self._series.copy()
+        nivel = [] # por jerarquía de inputs: region > estacion > parametro > altura
+
+        nivel.append(region)
+        if all(v is None for v in nivel):
+            id_regiones = getattr(self, '_id_regiones', None)
+            if id_regiones is not None:
+                mask = series_sel['id_reg'].isin(id_regiones)
+                series_sel = series_sel.loc[mask, :]
         elif region is not None:
             id_regiones = input_region(region, self._regiones)
-            mask = self._estaciones['id_reg'].isin(id_regiones)
-            id_estaciones = self._estaciones[mask].index.tolist()
+            mask = series_sel['id_reg'].isin(id_regiones)
+            series_sel = series_sel.loc[mask, :]
+
+        nivel.append(estacion)
+        if all(v is None for v in nivel):
+            id_estaciones = getattr(self, '_id_estaciones', None)
+            if id_estaciones is not None:
+                series_sel = series_sel.loc[(id_estaciones, slice(None)), :]
         elif estacion is not None:
-            id_estaciones, id_reg_est = input_est(estacion, self._estaciones)
+            id_estaciones, id_regiones = input_est(estacion, self._estaciones)
+            _xval_estacion(id_estaciones, series_sel, self._estaciones)
+            series_sel = series_sel.loc[(id_estaciones, slice(None)), :]
 
-            # en cualquier caso, tomar solo las regiones de las estaciones configuradas
-            id_regiones = id_reg_est
-        else:
-            id_regiones = getattr(self, "_id_regiones", None)
-            id_estaciones = getattr(self, "_id_estaciones", None)
-        
-
-        if parametro:
+        nivel.append(parametro)
+        if all(v is None for v in nivel):
+            cod_params = getattr(self, '_cod_params', None)
+            if cod_params is not None:
+                series_sel = series_sel.loc[(slice(None), cod_params), :]
+        elif parametro is not None:
             cod_params = input_param(parametro, self._parametros)
-        # si se está configurando region o estacion, y no parametro, entonces
-        # tomar todos los de las estaciones configuradas
-        elif (region or estacion) and parametro is None:
-                cod_params = self._series.loc[(id_estaciones, slice(None)), :].index.get_level_values(1).tolist()
-                cod_params = list(set(cod_params))
-        else:
-            cod_params = getattr(self, "_cod_params", None)
+            _xval_parametro(cod_params, series_sel, self._estaciones, self._parametros)
+            series_sel = series_sel.loc[(slice(None), cod_params), :]
 
-        return id_regiones, id_estaciones, cod_params
-    
-    def _set_reg_est_par(self, id_regiones, id_estaciones, cod_params):
+        nivel.append(altura)
+        if all(v is None for v in nivel):
+            alturas = getattr(self, '_altura', None)
+            if alturas is not None:
+                mask = series_sel['altura'].isin(alturas)
+                series_sel = series_sel.loc[mask, :]
+        elif altura is not None:
+            alturas = input_altura(altura)
+            _xval_altura(alturas, series_sel, self._estaciones, self._parametros)
+            mask = series_sel['altura'].isin(alturas)
+            series_sel = series_sel.loc[mask, :]
+
+
+        id_estaciones = series_sel.index.get_level_values(0).unique().tolist()
+        cod_params = series_sel.index.get_level_values(1).unique().tolist()
+        alturas = series_sel['altura'].unique().tolist()
+
+        id_regiones = self._estaciones.loc[id_estaciones, 'id_reg'].unique().tolist()
+        return id_regiones, id_estaciones, cod_params, alturas, series_sel
+
+
+    def _set_variables(self, id_regiones, id_estaciones, cod_params, alturas, series_sel):
+        if series_sel is None:
+            self._series_sel = None
+        else:
+            self._series_sel = series_sel
+
         if id_regiones is None:
             self._regiones_sel = None
             self._id_regiones = None
@@ -309,13 +372,22 @@ class Sinca:
             self._cod_params = self._parametros_sel.index.tolist()
             self._nombre_params = self._parametros_sel['nombre_param'].tolist()
 
+        if alturas is None:
+            self._altura = None
+        else:
+            self._altura = alturas
+
+
     def __repr__(self):
         return (
             "Sinca(\n"
             f"  region={self._id_regiones},\n"
             f"  estacion={self._id_estaciones},\n"
             f"  parametro={self._cod_params},\n"
-            f"  inicio={self._inicio}, fin={self._fin}\n"
+            f"  altura={self._altura},\n"
+            f"  muestreo={self._muestreo},\n"
+            f"  agregacion={self._agregacion},\n"
+            f"  inicio={self.inicio}, fin={self.fin}"
             ")"
         )
 
@@ -325,6 +397,9 @@ class Sinca:
             f"  region={self._nombre_regiones},\n"
             f"  estacion={self._nombre_estaciones},\n"
             f"  parametro={self._nombre_params},\n"
-            f"  inicio={self.inicio}, fin={self.fin}\n"
+            f"  altura={self._altura},\n"
+            f"  muestreo={self._muestreo},\n"
+            f"  agregacion={self._agregacion},\n"
+            f"  inicio={self.inicio}, fin={self.fin}"
             ")"
         )

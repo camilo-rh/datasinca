@@ -1,8 +1,6 @@
 import pandas as pd
 import re
 
-from termcolor import cprint
-
 def parse_response(req_text):
     reqt = req_text[req_text.find('#DATA') + 6:req_text.find('EOF')].replace(' ','')
     reqsplit = [x.split(',') for x in reqt.split('\n')]
@@ -51,7 +49,6 @@ def remcol(df,columname, plot_vars):
 def procesar_request(req_text, columna):
     # validación de contenido
     if req_text.startswith("psgraph: Could not load macro: Can't open macro file"):
-        cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {columna[2]} en {columna[1]}', 'red', attrs=['bold'])
         return None, None, None
     df_raw = parse_response(req_text)
     plot_vars = get_plot_vars(req_text) # buscar descripción de columnas originales en metadata del encabezado
