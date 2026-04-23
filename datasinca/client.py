@@ -84,7 +84,7 @@ class Sinca:
                 estaciones_impresas.add(id_est)
                 mensaje = self._get_mensaje_estacion(id_est)
                 if mensaje:
-                    print(end='\t')
+                    print(end='\t', flush=True)
                     self.logger.warning(f"{nombre_est} ({id_est}): {mensaje}")
 
             print(f"\t{nombre_param} (altura: {altura_str})",end=' - ', flush=True)

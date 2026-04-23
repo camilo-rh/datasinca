@@ -7,11 +7,12 @@ AGREGACION_DEFECTO = {'horario': 'horario',
                      'diario': 'diario',
                      'discreto': 'diario'}
 
-def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,agregacion):
-        PARAMS_CAL = {'PM25' , 'PM10' ,'0003' , '0NOX' , '0001' , '0008' ,'0004','0002'}
-        PARAMS_MET = {'TEMP', 'WSPD', 'RHUM'}
-        PARAMS_WDIR = {'WDIR'}
+PARAMS_CAL = {'PM25', 'PM10', '0003', '0NOX', '0001', '0008', '0004', '0002', 'CTOT', 'TRSG',
+                'THCM', 'PM2D', '00Cu', 'PM1D', 'ARSE', '00Pb', '0CH4', 'CORG', '00Ni', 'NMHC'}
+PARAMS_MET = {'TEMP', 'WSPD', 'RHUM', 'PRES', 'SOL', 'RAIN', 'GLOB'}
+PARAMS_WDIR = {'WDIR'}
 
+def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,agregacion):
         codaltura = str(altura if altura != "S/I" else 0).rjust(3, '0')
         agregacion = AGREGACION_DEFECTO.get(muestreo, 'horario') if agregacion is None else agregacion
         url = f"{URL_DESCARGA}{codreg}/{codest}/"
