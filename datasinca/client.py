@@ -1,29 +1,28 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Thu Jul 30 00:25:28 2020
+Cliente de datasinca.
 
-@author: Camilo Ramírez Herrera
+Maneja la descarga y procesamiento de datos desde SINCA.
 """
-
 
 import requests
 import pandas as pd
-from termcolor import cprint
 import re
+import logging
 from .metadata import load_metadata
 from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo, input_agregacion
 from .data.validators import _xval_estacion, _xval_parametro, _xval_altura
 from .downloader import Transport, descargar_serie, URL_ESTACION
 from .parser import procesar_request
 from .models import DataSINCA
+from .logger import setup_logging
 
-
+logger = setup_logging(name="datasinca")
 
 class Sinca:
     def __init__(self, region=None, estacion=None, parametro=None, inicio=None,
                  fin=None, altura=None, muestreo='horario', agregacion=None, transport=None, data_path=None):
-
+        
+        self.logger = logging.getLogger("datasinca")
         regiones, estaciones, parametros, series = load_metadata(data_path)
 
         self._regiones = regiones
@@ -55,17 +54,20 @@ class Sinca:
         inputs = {**self._build_params(), **kwargs}
 
         inicio, fin, series_sel, muestreo, agregacion, transport = self._parse_inputs(inputs)
+        filtros = {k:v for k,v in inputs.items() if not k in ['series_sel', 'transport']}
+        self.logger.info(f"Inicio descarga SINCA | {filtros}")
 
-        cprint(f'Descarga de datos SINCA desde {inicio.strftime('%d/%m/%Y')} hasta {fin.strftime('%d/%m/%Y')}', attrs=['bold'])
         inicio = inicio.strftime('%y%m%d')
         fin = fin.strftime('%y%m%d')
 
         column_names = ['comuna','estacion','parametro','altura']
         df_datos = []
         df_validez = []
-        unidades = {}
+        unidades = dict()
 
-        for (id_est, cod_param), row_serie in series_sel.iterrows():
+        estaciones_impresas = set()
+
+        for (id_est, cod_param), row_serie in series_sel.sort_index().iterrows():
             row_est = self._estaciones.loc[id_est]
             nombre_est = row_est['nombre_est']
             cod_est = row_est['cod_est']
@@ -75,13 +77,18 @@ class Sinca:
 
             nombre_param = self._parametros.loc[cod_param,'nombre_param']
             altura_actual = row_serie['altura']
-            columna = (nombre_comuna, nombre_est, nombre_param, altura_actual) # clave de la serie (MultiIndex)
-            print(f'{nombre_est} - {nombre_comuna} - {nombre_param} (altura: {altura_actual}) - ', end='')
-            print(f'URL: {URL_ESTACION}{id_est}')
-            mensaje = self._get_mensaje_estacion(id_est)
-            if mensaje:
-                cprint('Mensaje de la estación ' + nombre_est, 'red', attrs=['bold'])
-                cprint(mensaje,'red',attrs=['bold'])
+            altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
+            columna = (nombre_comuna, nombre_est, nombre_param, altura_str) # clave de la serie (MultiIndex)
+            if id_est not in estaciones_impresas:
+                print(f"\n{row_est['nombre_est']} - {row_est['comuna']} - URL: {URL_ESTACION}{id_est}")
+                estaciones_impresas.add(id_est)
+                mensaje = self._get_mensaje_estacion(id_est)
+                if mensaje:
+                    print(end='\t')
+                    self.logger.warning(f"{nombre_est} ({id_est}): {mensaje}")
+
+            print(f"\t{nombre_param} (altura: {altura_str})",end=' - ', flush=True)
+
             try:
                 req = descargar_serie(
                     inicio=inicio,
@@ -95,19 +102,19 @@ class Sinca:
                     transport=transport
                 )
             except requests.exceptions.ConnectionError:
-                cprint(f'No se pudo conectar a SINCA para {nombre_param} en {nombre_est}', 'white', 'on_blue')
+                self.logger.error(f"Error conexión SINCA: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
                 continue
-            print('Descargado, procesando ... ', end='', flush=True)
+            print('Descargado. ... ', end='', flush=True)
             serie_datos, serie_validez, unidad = procesar_request(req.text, columna)
             if serie_datos is None:
-                cprint(f'DATOS CAÍDOS O NO HAY DATOS DE {columna[2]} en {columna[1]}', 'red', attrs=['bold'])
+                print(end='\n\t')
+                self.logger.warning(f"Sin datos: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
                 continue
 
             print('Procesado')
             unidades[columna] = unidad
             df_datos.append(serie_datos) # acumular series
             df_validez.append(serie_validez)
-
 
         # concatenar series datos y validez en dataframes
         if df_datos:
