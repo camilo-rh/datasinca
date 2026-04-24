@@ -1,29 +1,29 @@
-cod_param;nombre_param
-0001;Dióxido de azufre
-0002;Monóxido de nitrógeno
-0003;Dióxido de nitrógeno
-0004;Monóxido de carbono
-0008;Ozono.-
-00Cu;Cu
-00Ni;Ni
-00Pb;Pb
-0CH4;Metano
-0NOX;Óxidos de nitrógeno
-ARSE;As
-CORG;Carbono orgánico
-CTOT;Carbono total
-GLOB;Radiación global
-NMHC;Hidrocarburos no metánicos
-PM10;Material particulado MP 10
-PM1D;Material particulado 10 micrometros discreto
-PM25;Material particulado MP 2,5
-PM2D;Material particulado 2.5 micrometros discreto
-PRES;Presión atmosférica
-RAIN;Precipitaciones
-RHUM;Humedad relativa del aire
-SOL;Radiacion Solar
-TEMP;Temperatura ambiente
-THCM;Hidrocarburos totales
-TRSG;TRS
-WDIR;Dirección del viento
-WSPD;Velocidad del viento
+cod_param;nombre_param;alias_param
+0001;Dióxido de azufre;SO2
+0002;Monóxido de nitrógeno;NO
+0003;Dióxido de nitrógeno;NO2
+0004;Monóxido de carbono;CO
+0008;Ozono;O3
+00Cu;Cu;Cu
+00Ni;Niquel;Ni
+00Pb;Plomo;Pb
+0CH4;Metano;CH4
+0NOX;Óxidos de nitrógeno;NOx
+ARSE;Arsénico;As
+CORG;Carbono orgánico;OC
+CTOT;Carbono total;TC
+GLOB;Radiación global;GLOB
+NMHC;Hidrocarburos no metánicos;NMHC
+PM10;Material particulado MP 10;PM10
+PM1D;Material particulado 10 micrometros discreto;PM10D
+PM25;Material particulado MP 2,5;PM25
+PM2D;Material particulado 2.5 micrometros discreto;PM25D
+PRES;Presión atmosférica;PRES
+RAIN;Precipitaciones;RAIN
+RHUM;Humedad relativa del aire;RH
+SOL;Radiacion Solar;SOL
+TEMP;Temperatura ambiente;TEMP
+THCM;Hidrocarburos totales;THC
+TRSG;Azufre reducido total;TRS
+WDIR;Dirección del viento;WDIR
+WSPD;Velocidad del viento;WSPD

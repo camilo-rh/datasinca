@@ -9,7 +9,7 @@ def load_metadata(data_path=None):
             base_path = Path.cwd() / base_path
     regiones = pd.read_csv(base_path / "regiones.csv", sep=';')
     estaciones = pd.read_csv(base_path / "estaciones.csv", sep=';', dtype={'id_est': 'Int64', 'cod_est': 'string', 'id_reg': 'string'})
-    parametros = pd.read_csv(base_path / "parametros.csv", sep=';', dtype={'cod_param': 'string', 'nombre_param': 'string'})
+    parametros = pd.read_csv(base_path / "parametros.csv", sep=';', dtype={'cod_param': 'string', 'nombre_param': 'string', 'alias_param': 'string'})
     series = pd.read_csv(base_path / "series.csv", sep=';', dtype={'id_est': 'Int64', 'cod_param': 'string', 'altura': 'Int64', 'id_reg': 'string'})
     
     series['altura'] = series['altura'].astype('object').fillna('S/I')

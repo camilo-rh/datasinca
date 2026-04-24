@@ -12,11 +12,8 @@ from .metadata import load_metadata
 from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo, input_agregacion
 from .data.validators import _xval_estacion, _xval_parametro, _xval_altura
 from .downloader import Transport, descargar_serie, URL_ESTACION
-from .parser import procesar_request
+from .parser import procesar_request, remcol
 from .models import DataSINCA
-from .logger import setup_logging
-
-logger = setup_logging(name="datasinca")
 
 class Sinca:
     def __init__(self, region=None, estacion=None, parametro=None, inicio=None,
@@ -60,10 +57,9 @@ class Sinca:
         inicio = inicio.strftime('%y%m%d')
         fin = fin.strftime('%y%m%d')
 
-        column_names = ['comuna','estacion','parametro','altura']
+        column_names = ['comuna','estacion','parametro', 'unidad', 'altura']
         df_datos = []
         df_validez = []
-        unidades = dict()
 
         estaciones_impresas = set()
 
@@ -76,9 +72,10 @@ class Sinca:
             cod_reg = self._regiones.loc[id_reg,'cod_reg']
 
             nombre_param = self._parametros.loc[cod_param,'nombre_param']
+            alias_param = self._parametros.loc[cod_param,'alias_param']
             altura_actual = row_serie['altura']
             altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
-            columna = (nombre_comuna, nombre_est, nombre_param, altura_str) # clave de la serie (MultiIndex)
+
             if id_est not in estaciones_impresas:
                 print(f"\n{row_est['nombre_est']} - {row_est['comuna']} - URL: {URL_ESTACION}{id_est}")
                 estaciones_impresas.add(id_est)
@@ -105,14 +102,16 @@ class Sinca:
                 self.logger.error(f"Error conexión SINCA: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
                 continue
             print('Descargado. ... ', end='', flush=True)
-            serie_datos, serie_validez, unidad = procesar_request(req.text, columna)
-            if serie_datos is None:
+            df_raw, plot_vars, unidad = procesar_request(req.text)
+            
+            if df_raw is None:
                 print(end='\n\t')
                 self.logger.warning(f"Sin datos: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
                 continue
 
+            columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
+            serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
             print('Procesado')
-            unidades[columna] = unidad
             df_datos.append(serie_datos) # acumular series
             df_validez.append(serie_validez)
 
@@ -127,7 +126,7 @@ class Sinca:
             df_datos = pd.DataFrame()
             df_validez = pd.DataFrame()
 
-        return DataSINCA(df_datos, df_validez, unidades)
+        return DataSINCA(df_datos, df_validez)
     
     def set(self, **kwargs):
         for key, value in kwargs.items():
@@ -163,9 +162,9 @@ class Sinca:
         norm['id_regiones'] = id_regiones
         norm['id_estaciones'] = id_estaciones
         norm['cod_params'] = cod_params
-        norm['alturas'] = alturas
+        norm['altura'] = alturas
         norm['series_sel'] = series_sel
-        del norm['region'], norm['estacion'], norm['parametro'], norm['altura']
+        del norm['region'], norm['estacion'], norm['parametro'], #norm['altura']
 
         for key, value in norm.items():
             if key in ['inicio', 'fin']:

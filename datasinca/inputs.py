@@ -189,26 +189,14 @@ def build_param_map(df_parametros):
 
     for cod_param, row in df_parametros.iterrows():
         nombre = row['nombre_param']
+        alias = row['alias_param']
 
+        param_map[normalizar_string(alias)] = cod_param
         param_map[normalizar_string(cod_param)] = cod_param
         param_map[normalizar_string(nombre)] = cod_param
 
     # alias útiles
-    param_map.update(dict.fromkeys(['so2','dioxidodeazufre','dioxidoazufre'], '0001'))
-    param_map.update(dict.fromkeys(['no','monoxidonitrogeno','monoxidodenitrogeno'], '0002'))
-    param_map.update(dict.fromkeys(['no2','dioxidonitrogeno','diodenx','diox.nitrogeno'], '0003'))
-    param_map.update(dict.fromkeys(['co','monoxidocarbono','monoxidodecarbono'], '0004'))
-    param_map.update(dict.fromkeys(['o3','ozono'], '0008'))
-    param_map.update(dict.fromkeys(['cobre'], '00Cu'))
-    param_map.update(dict.fromkeys(['niquel'], '00Ni'))
-    param_map.update(dict.fromkeys(['plomo'], '00Pb'))
-    param_map.update(dict.fromkeys(['metano','ch4'], '0CH4'))
-    param_map.update(dict.fromkeys(['nox','oxidosdenitrogeno','oxidosnitrogeno'], '0NOX'))
-    param_map.update(dict.fromkeys(['arsenico'], 'ARSE'))
-    param_map.update(dict.fromkeys(['carbonoorganico'], 'CORG'))
-    param_map.update(dict.fromkeys(['cot','carbonototal'], 'CTOT'))
-    param_map.update(dict.fromkeys(['radglob','radglobal'], 'GLOB'))
-    param_map.update(dict.fromkeys(['hcnm'], 'NMHC'))
+
     param_map.update(dict.fromkeys(['mp10','pm10'],'PM10'))
     param_map.update(dict.fromkeys(['mp10d','pm10d','mp10discreto','pm10discreto'],'PM1D'))
     param_map.update(dict.fromkeys(['pm25','mp25'],'PM25'))
@@ -216,10 +204,8 @@ def build_param_map(df_parametros):
     param_map.update(dict.fromkeys(['presion','presatm','presionatm'],'PRES'))
     param_map.update(dict.fromkeys(['precipitacion','lluvia'],'RAIN'))
     param_map.update(dict.fromkeys(['rh','hr','humedadrelativa','hum','hume'], 'RHUM'))
-    param_map.update(dict.fromkeys(['radsolar','sol'], 'SOL'))
     param_map.update(dict.fromkeys(['temp','t','temperatura'],'TEMP'))
     param_map.update(dict.fromkeys(['hct','thc','hidrocarburototal'],'THCM'))
-    param_map.update(dict.fromkeys(['compuestosdeazufretotalreducido','azufretotalreducido','totalreducedsulfur'],'TRSG'))
     param_map.update(dict.fromkeys(['wdir','dirviento','dv'], 'WDIR'))
     param_map.update(dict.fromkeys(['wspd','velviento'], 'WSPD'))
     

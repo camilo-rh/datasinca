@@ -46,13 +46,12 @@ def remcol(df,columname, plot_vars):
         raise ValueError("Número inesperado de variables en el header. Se esperaban 1 o 3.")
     
 
-def procesar_request(req_text, columna):
+def procesar_request(req_text):
     # validación de contenido
     if req_text.startswith("psgraph: Could not load macro: Can't open macro file"):
         return None, None, None
     df_raw = parse_response(req_text)
     plot_vars = get_plot_vars(req_text) # buscar descripción de columnas originales en metadata del encabezado
-    serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
     match = re.search(r'\([^)]*', plot_vars[0]) # extraer unidad (ej: "ug/m3")
     unidad = match[0][1:] if match else None
-    return serie_datos, serie_validez, unidad
+    return df_raw, plot_vars, unidad
