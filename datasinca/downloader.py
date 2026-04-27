@@ -1,4 +1,8 @@
 import requests
+import re
+import html
+import pandas as pd
+from io import StringIO
 
 BASE_URL = "https://sinca.mma.gob.cl"
 URL_ESTACION = BASE_URL + "/index.php/estacion/index/id/"
@@ -18,11 +22,11 @@ def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,agregacion):
         url = f"{URL_DESCARGA}{codreg}/{codest}/"
 
         if codparam in PARAMS_CAL:
-            url += f'Cal/{codparam}//{codparam}.{muestreo}.{agregacion}' #'Cal/'+ codparam +'//'+ codparam +'.horario.horario'
+            url += f'Cal/{codparam}//{codparam}.{muestreo}.{agregacion}'
         elif codparam in PARAMS_MET:
-            url += f'Met/{codparam}//{muestreo}_{codaltura}' #'Met/'+ codparam +'//horario_'+codaltura
+            url += f'Met/{codparam}//{muestreo}_{codaltura}'
         elif codparam in PARAMS_WDIR:
-            url += f'Met/{codparam}//{muestreo}_{codaltura}_spec' # 'Met/'+ codparam +'//horario_'+codaltura+'_spec'
+            url += f'Met/{codparam}//{muestreo}_{codaltura}_spec'
         else:
             raise ValueError(f'Parámetro no reconocido: {codparam}')
         
@@ -64,3 +68,35 @@ def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, 
     url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,muestreo,agregacion)
     transport = transport or Transport()
     return transport.get(url)
+
+
+def descargar_mensaje_estacion(transport, id_est, include_tablas=False):
+    text = transport.get(URL_ESTACION + str(id_est)).text
+
+    match = re.search(r'"mensajeStn".*?</div', text, flags=re.DOTALL)
+    if not match:
+        return None
+    mensaje = match.group()[13:-5]
+
+    if not include_tablas and re.search(r'<table\b', mensaje, flags=re.IGNORECASE):
+        return None
+    if include_tablas:
+        match = re.search(r'<table\b.*?</table>', mensaje, flags=re.DOTALL)
+        if not match:
+            return None
+        tabla = match.group()
+        df = pd.read_html(StringIO(tabla))[0]
+        tabla = df.to_string(index=False)
+        tabla = "\n".join(f"\t{line}" for line in tabla.splitlines())
+        prev_mensaje = (limpiar_mensaje(mensaje[:match.start()]) + "\n")
+        post_mensaje = ("\n" + limpiar_mensaje(mensaje[match.end():])).rstrip()
+        mensaje = prev_mensaje + tabla + post_mensaje
+    else:
+        mensaje = limpiar_mensaje(mensaje)
+    return mensaje
+
+def limpiar_mensaje(mensaje):
+    mensaje = re.sub(r'<[^>]+>', '', mensaje)
+    mensaje = html.unescape(mensaje)
+    mensaje = re.sub(r'\s+', ' ', mensaje).strip()
+    return mensaje

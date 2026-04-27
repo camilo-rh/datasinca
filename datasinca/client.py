@@ -6,12 +6,12 @@ Maneja la descarga y procesamiento de datos desde SINCA.
 
 import requests
 import pandas as pd
-import re
 import logging
+import shutil
 from .metadata import load_metadata
 from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo, input_agregacion
-from .data.validators import _xval_estacion, _xval_parametro, _xval_altura
-from .downloader import Transport, descargar_serie, URL_ESTACION
+from .validators import _xval_estacion, _xval_parametro, _xval_altura
+from .downloader import Transport, descargar_serie, URL_ESTACION, descargar_mensaje_estacion
 from .parser import procesar_request, remcol
 from .models import DataSINCA
 
@@ -58,67 +58,73 @@ class Sinca:
         fin = fin.strftime('%y%m%d')
 
         column_names = ['comuna','estacion','parametro', 'unidad', 'altura']
-        df_datos = []
-        df_validez = []
+        lista_series_datos = []
+        lista_series_validez = []
 
         estaciones_impresas = set()
 
-        for (id_est, cod_param), row_serie in series_sel.sort_index().iterrows():
-            row_est = self._estaciones.loc[id_est]
-            nombre_est = row_est['nombre_est']
-            cod_est = row_est['cod_est']
-            nombre_comuna = row_est['comuna']
-            id_reg = row_est['id_reg']
-            cod_reg = self._regiones.loc[id_reg,'cod_reg']
+        for id_reg, series_reg in series_sel.groupby('id_reg', sort=True):
+            nombre_region = self._regiones.loc[id_reg, 'nombre_region']
+            width = shutil.get_terminal_size().columns
+            print()
+            print(f" Region {nombre_region} ({id_reg}) ".center(width, '-'))
+            for (id_est, cod_param), row_serie in series_reg.sort_index().iterrows():
+                row_est = self._estaciones.loc[id_est]
+                nombre_est = row_est['nombre_est']
+                cod_est = row_est['cod_est']
+                nombre_comuna = row_est['comuna']
+                id_reg = row_est['id_reg']
+                cod_reg = self._regiones.loc[id_reg,'cod_reg']
 
-            nombre_param = self._parametros.loc[cod_param,'nombre_param']
-            alias_param = self._parametros.loc[cod_param,'alias_param']
-            altura_actual = row_serie['altura']
-            altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
+                nombre_param = self._parametros.loc[cod_param,'nombre_param']
+                alias_param = self._parametros.loc[cod_param,'alias_param']
+                altura_actual = row_serie['altura']
+                altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
 
-            if id_est not in estaciones_impresas:
-                print(f"\n{row_est['nombre_est']} - {row_est['comuna']} - URL: {URL_ESTACION}{id_est}")
-                estaciones_impresas.add(id_est)
-                mensaje = self._get_mensaje_estacion(id_est)
-                if mensaje:
-                    print(end='\t', flush=True)
-                    self.logger.warning(f"{nombre_est} ({id_est}): {mensaje}")
+                if id_est not in estaciones_impresas:
+                    print(f"\n{row_est['nombre_est']} - {row_est['comuna']} - URL: {URL_ESTACION}{id_est}")
+                    estaciones_impresas.add(id_est)
+                    mensaje = descargar_mensaje_estacion(self.transport, id_est, include_tablas=True)
+                    if mensaje:
+                        self._mensajes_cache[id_est] = mensaje
+                        print(end='\t', flush=True)
+                        self.logger.warning(f"{nombre_est} ({id_est}): {mensaje}"); print()
 
-            print(f"\t{nombre_param} (altura: {altura_str})",end=' - ', flush=True)
+                print(f"\t{nombre_param} (altura: {altura_str})",end=' - ', flush=True)
 
-            try:
-                req = descargar_serie(
-                    inicio=inicio,
-                    fin=fin,
-                    cod_reg=cod_reg,
-                    cod_param=cod_param,
-                    cod_est=cod_est,
-                    altura=altura_actual,
-                    muestreo=muestreo,
-                    agregacion=agregacion,
-                    transport=transport
-                )
-            except requests.exceptions.ConnectionError:
-                self.logger.error(f"Error conexión SINCA: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
-                continue
-            print('Descargado. ... ', end='', flush=True)
-            df_raw, plot_vars, unidad = procesar_request(req.text)
-            
-            if df_raw is None:
-                print(end='\n\t')
-                self.logger.warning(f"Sin datos: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
-                continue
+                try:
+                    req = descargar_serie(
+                        inicio=inicio,
+                        fin=fin,
+                        cod_reg=cod_reg,
+                        cod_param=cod_param,
+                        cod_est=cod_est,
+                        altura=altura_actual,
+                        muestreo=muestreo,
+                        agregacion=agregacion,
+                        transport=transport
+                    )
+                except requests.exceptions.ConnectionError:
+                    self.logger.error(f"Error conexión SINCA: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
+                    continue
+                print('Descargado. ... ', end='', flush=True)
+                df_raw, plot_vars, unidad = procesar_request(req.text)
+                
+                if df_raw is None:
+                    print(end='\n\t')
+                    self.logger.warning(f"Sin datos: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
+                    continue
 
-            columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
-            serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
-            print('Procesado')
-            df_datos.append(serie_datos) # acumular series
-            df_validez.append(serie_validez)
+                columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
+                serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
+                print('Procesado')
+                lista_series_datos.append(serie_datos) # acumular series
+                lista_series_validez.append(serie_validez)
 
         # concatenar series datos y validez en dataframes
-        if df_datos:
-            df_datos = pd.concat(df_datos, axis=1)
-            df_validez = pd.concat(df_validez, axis=1)
+        if lista_series_datos:
+            df_datos = pd.concat(lista_series_datos, axis=1)
+            df_validez = pd.concat(lista_series_validez, axis=1)
             # nombres de niveles de columnas (MultiIndex)
             df_datos.columns.names = column_names
             df_validez.columns.names = column_names
@@ -175,7 +181,7 @@ class Sinca:
                 norm['agregacion'] = input_agregacion(value)
             elif key == 'transport':
                 pass
-            elif key in ['id_regiones', 'id_estaciones', 'cod_params', 'alturas', 'series_sel']:
+            elif key in ['id_regiones', 'id_estaciones', 'cod_params', 'altura', 'series_sel']:
                 pass
             else:
                 raise ValueError(f"Variable de entrada desconocida: {key}")
@@ -197,18 +203,8 @@ class Sinca:
         transport = inputs['transport']
         return inicio, fin, series_sel, muestreo, agregacion, transport
     
-    def _get_mensaje_estacion(self, id_estacion):
-        text = self.transport.get(URL_ESTACION + str(id_estacion)).text
 
-        match = re.search(r'"mensajeStn".*</div', text)
-        if not match:
-            return None
-        mensaje = match.group()[13:-5]
-        mensaje = re.sub(r'&(?P<vocal>[aeiou])acute;', r'\g<vocal>', mensaje)
-        mensaje = re.sub(r'<p>|</p>', '', mensaje)
-        self._mensajes_cache[id_estacion] = mensaje
-        return mensaje
-    
+
     @property
     def inicio(self):
         return self._inicio.strftime('%d/%m/%Y')
