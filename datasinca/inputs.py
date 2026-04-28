@@ -56,7 +56,7 @@ def input_region(regiones, df_regiones):
 
     return ids
 
-def input_est(estaciones, df_estaciones):
+def input_est(estaciones, df_estaciones, mapto='id_est'):
     id_estaciones = []
     id_reg_est = set()
 
@@ -66,36 +66,39 @@ def input_est(estaciones, df_estaciones):
     if isinstance(estaciones, (str, int)):
         estaciones = [estaciones]
 
-    est_map = build_est_map(df_estaciones)
+    est_map = build_est_map(df_estaciones, mapto)
 
-    for e in estaciones:
-        if isinstance(e, str):
-            key = normalizar_string(e)
+    for est in estaciones:
+        if isinstance(est, str):
+            key = normalizar_string(est)
 
             if key not in est_map: # si no se encuentra, comprobar que no es un nombre duplicado (con sufijo de comuna)
                 posibles = df_estaciones.loc[df_estaciones['nombre_est'].apply(normalizar_string) == key, :]
 
-                if len(posibles) > 1:
+                if len(posibles) > 1: # si está duplicado, pedir agregar comuna al nombre
                     opciones = [f"{row['nombre_est']} ({row['comuna']})"
                                 for _, row in posibles.iterrows()]
-                    raise ValueError(f"Estación con nombre repetido: {e}. Usa una de estas:\n" +
+                    raise ValueError(f"Estación con nombre repetido: {est}. Usa una de estas:\n" +
                                      "\n".join(opciones))
 
-                raise ValueError(f"Estación desconocida: {e}")
+                raise ValueError(f"Estación desconocida: {est}")
             
             id_est = est_map[key]
-        elif isinstance(e, int):
-            if e not in df_estaciones.index:
-                raise ValueError(f"id_est inválido: {e}")
-            id_est = e
+        elif isinstance(est, int):
+            if est not in df_estaciones.index:
+                raise ValueError(f"id_est inválido: {est}")
+            id_est = est_map[est]
 
-        id_reg = df_estaciones.loc[id_est,'id_reg']
-        id_reg_est.add(id_reg)
+        if mapto == 'id_est':
+            id_reg = [df_estaciones.loc[id_est,'id_reg']]
+        else:
+            id_reg = df_estaciones.loc[df_estaciones[mapto]==id_est, 'id_reg']
+        id_reg_est.update(id_reg)
         id_estaciones.append(id_est)
     return id_estaciones, list(id_reg_est)
 
-def input_param(parametros, df_parametros):
-    param_map = build_param_map(df_parametros)
+def input_param(parametros, df_parametros, mapto='cod_param'):
+    param_map = build_param_map(df_parametros, mapto)
 
     if parametros is None:
         return df_parametros.index.tolist()
@@ -139,29 +142,34 @@ def input_fecha(fecha):
     # --- string ---
     elif isinstance(fecha, str):
         fecha = fecha.strip()
+        sep = None
         if '/' in fecha:
-            parts = fecha.split('/')
+            sep = '/'
+        elif '-' in fecha:
+            sep = '-'
+        if sep:
+            parts = fecha.split(sep)
             if len(parts) != 3:
                 raise ValueError("Formato de fecha inválido")
 
             d, m, y = parts
             if len(y) == 2:
-                fmt = '%d/%m/%y'
+                fmt = f'%d{sep}%m{sep}%y'
             elif len(y) == 4:
-                fmt = '%d/%m/%Y'
+                fmt = f'%d{sep}%m{sep}%Y'
             else:
                 raise ValueError("Formato de año inválido")
-            fecha = datetime.datetime.strptime(fecha, fmt).date()
 
         elif fecha.isdigit():
             if len(fecha) == 6:
-                fecha = datetime.datetime.strptime(fecha, '%d%m%y').date()
+                fmt = '%d%m%y'
             elif len(fecha) == 8:
-                fecha = datetime.datetime.strptime(fecha, '%d%m%Y').date()
+                fmt = '%d%m%Y'
             else:
                 raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
         else:
             raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+        fecha = datetime.datetime.strptime(fecha, fmt).date()
     else:
         raise TypeError("Tipo de fecha no soportado")
 
@@ -184,34 +192,38 @@ def normalizar_string(s):
             .replace("-", "").replace(",", ".").replace(".", "")
             .replace("{", "").replace("}", "")).replace("'", "")
 
-def build_param_map(df_parametros):
+def build_param_map(df_parametros, mapto):
     param_map = {}
 
     for cod_param, row in df_parametros.iterrows():
         nombre = row['nombre_param']
         alias = row['alias_param']
+        if mapto=='cod_param':
+            dest=cod_param
+        else:
+            dest = row[mapto]
 
-        param_map[normalizar_string(alias)] = cod_param
-        param_map[normalizar_string(cod_param)] = cod_param
-        param_map[normalizar_string(nombre)] = cod_param
+        param_map[normalizar_string(alias)] = dest
+        param_map[normalizar_string(cod_param)] = dest
+        param_map[normalizar_string(nombre)] = dest
 
     # alias útiles
 
-    param_map.update(dict.fromkeys(['mp10','pm10'],'PM10'))
-    param_map.update(dict.fromkeys(['mp10d','pm10d','mp10discreto','pm10discreto'],'PM1D'))
-    param_map.update(dict.fromkeys(['pm25','mp25'],'PM25'))
-    param_map.update(dict.fromkeys(['mp25d','pm25d','mp25discreto','pm25discreto'],'PM2D'))
-    param_map.update(dict.fromkeys(['presion','presatm','presionatm'],'PRES'))
-    param_map.update(dict.fromkeys(['precipitacion','lluvia'],'RAIN'))
-    param_map.update(dict.fromkeys(['rh','hr','humedadrelativa','hum','hume'], 'RHUM'))
-    param_map.update(dict.fromkeys(['temp','t','temperatura'],'TEMP'))
-    param_map.update(dict.fromkeys(['hct','thc','hidrocarburototal'],'THCM'))
-    param_map.update(dict.fromkeys(['wdir','dirviento','dv'], 'WDIR'))
-    param_map.update(dict.fromkeys(['wspd','velviento'], 'WSPD'))
+    param_map.update(dict.fromkeys(['mp10'],param_map['pm10']))
+    param_map.update(dict.fromkeys(['mp10d','pm10d','mp10discreto','pm10discreto'],param_map['pm1d']))
+    param_map.update(dict.fromkeys(['mp25'],param_map['pm25']))
+    param_map.update(dict.fromkeys(['mp25d','pm25d','mp25discreto','pm25discreto'],param_map['pm2d']))
+    param_map.update(dict.fromkeys(['presion','presatm','presionatm'],param_map['pres']))
+    param_map.update(dict.fromkeys(['precipitacion','lluvia'],param_map['rain']))
+    param_map.update(dict.fromkeys(['rh','hr','humedadrelativa','hum','hume'], param_map['rhum']))
+    param_map.update(dict.fromkeys(['temp','t','temperatura'],param_map['temp']))
+    param_map.update(dict.fromkeys(['hct','thc','hidrocarburototal'],param_map['thcm']))
+    param_map.update(dict.fromkeys(['wdir','dirviento','dv'], param_map['wdir']))
+    param_map.update(dict.fromkeys(['wspd','velviento'], param_map['wspd']))
     
     return param_map
 
-def build_est_map(df_estaciones):
+def build_est_map(df_estaciones, mapto):
     est_map = {}
 
     duplicados = set(
@@ -221,17 +233,22 @@ def build_est_map(df_estaciones):
         cod = row['cod_est']
         nombre = row['nombre_est']
         comuna = row['comuna']
+        if mapto == 'id_est':
+            dest = id_est
+        else:
+            dest = row[mapto]
 
         if not isinstance(cod, str):
             # print(f'nombre: {nombre} - cod: {cod} - id: {id_est} - comuna: {comuna}')
             continue
-        est_map[normalizar_string(cod)] = id_est
+        est_map[normalizar_string(cod)] = dest
+        est_map[id_est] = dest
 
         if nombre not in duplicados:
-            est_map[normalizar_string(nombre)] = id_est
+            est_map[normalizar_string(nombre)] = dest
         else:
             nombre_ext = f"{nombre} ({comuna})"
-            est_map[normalizar_string(nombre_ext)] = id_est
+            est_map[normalizar_string(nombre_ext)] = dest
     return est_map
 
 def build_region_map(df_regiones):

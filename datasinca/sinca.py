@@ -124,7 +124,7 @@ class Sinca:
             df_datos = pd.DataFrame()
             df_validez = pd.DataFrame()
 
-        return DataSINCA(df_datos, df_validez)
+        return DataSINCA(df_datos, df_validez, self._metadata)
     
     def set(self, **kwargs):
         for key, value in kwargs.items():
