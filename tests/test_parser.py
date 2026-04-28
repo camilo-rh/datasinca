@@ -1,12 +1,13 @@
 def test_procesar_request_texto_real():
-    from datasinca.parser import procesar_request
+    from datasinca.parser import procesar_request, remcol
 
     columna = ("Santiago", "Parque O'Higgins", "Ozono.-")
 
     with open("tests/data/sinca_sample.txt", encoding="latin-1") as f:
         raw_text = f.read()
 
-    serie_datos, serie_validez, unidad = procesar_request(raw_text, columna)
+    df_raw, plot_vars, unidad = procesar_request(raw_text)
+    serie_datos, serie_validez = remcol(df_raw, columna, plot_vars)
 
     assert serie_datos is not None
     assert serie_validez is not None
@@ -21,14 +22,15 @@ def test_procesar_request_texto_real():
 
 
 def test_procesar_request_valores_correctos():
-    from datasinca.parser import procesar_request
+    from datasinca.parser import procesar_request, remcol
 
     columna = ("", "", "")
 
     with open("tests/data/sinca_sample.txt", encoding="latin-1") as f:
         raw_text = f.read()
 
-    serie_datos, _, _ = procesar_request(raw_text, columna)
+    df_raw, plot_vars, _ = procesar_request(raw_text)
+    serie_datos, _ = remcol(df_raw, columna, plot_vars) 
 
     valores = serie_datos.tolist()
     assert len(serie_datos) == 691
@@ -50,10 +52,8 @@ def test_procesar_request_sin_datos():
 
     raw_text = "psgraph: Could not load macro: Can't open macro file"
 
-    columna = ("", "ESTACION DE PRUEBA", "PARAMETRO DE PRUEBA")
+    df_raw, plot_vars, unidad = procesar_request(raw_text)
 
-    serie_datos, serie_validez, unidad = procesar_request(raw_text, columna)
-
-    assert serie_datos is None
-    assert serie_validez is None
+    assert df_raw is None
+    assert plot_vars is None
     assert unidad is None

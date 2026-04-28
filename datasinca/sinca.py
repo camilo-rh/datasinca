@@ -16,22 +16,14 @@ from .parser import procesar_request, remcol
 from .models import DataSINCA
 
 class Sinca:
-    def __init__(self, region=None, estacion=None, parametro=None, inicio=None,
+    def __init__(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
                  fin=None, altura=None, muestreo='horario', agregacion=None, transport=None, data_path=None):
         
         self.logger = logging.getLogger("datasinca")
-        regiones, estaciones, parametros, series = load_metadata(data_path)
 
-        self._regiones = regiones
-        self._estaciones = estaciones
-        self._parametros = parametros
-        self._series = (series
-                        # .merge(estaciones, on='id_est', how='left')
-                        # .merge(parametros, on='cod_param', how='left')
-                        )
+        self._metadata = load_metadata(data_path)
 
-        self._set_variables(None, None, None, None, series.copy())
-
+        self._set_variables(None, None, None, None, self._metadata.series.copy())
         if any([region, estacion, parametro, altura]):
             id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
             self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
@@ -64,25 +56,25 @@ class Sinca:
         estaciones_impresas = set()
 
         for id_reg, series_reg in series_sel.groupby('id_reg', sort=True):
-            nombre_region = self._regiones.loc[id_reg, 'nombre_region']
+            nombre_region = self._metadata.regiones.loc[id_reg, 'nombre_region']
             width = shutil.get_terminal_size().columns
             print()
             print(f" Region {nombre_region} ({id_reg}) ".center(width, '-'))
             for (id_est, cod_param), row_serie in series_reg.sort_index().iterrows():
-                row_est = self._estaciones.loc[id_est]
+                row_est = self._metadata.estaciones.loc[id_est]
                 nombre_est = row_est['nombre_est']
                 cod_est = row_est['cod_est']
                 nombre_comuna = row_est['comuna']
                 id_reg = row_est['id_reg']
-                cod_reg = self._regiones.loc[id_reg,'cod_reg']
+                cod_reg = self._metadata.regiones.loc[id_reg,'cod_reg']
 
-                nombre_param = self._parametros.loc[cod_param,'nombre_param']
-                alias_param = self._parametros.loc[cod_param,'alias_param']
+                nombre_param = self._metadata.parametros.loc[cod_param,'nombre_param']
+                alias_param = self._metadata.parametros.loc[cod_param,'alias_param']
                 altura_actual = row_serie['altura']
                 altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
 
                 if id_est not in estaciones_impresas:
-                    print(f"\n{row_est['nombre_est']} - {row_est['comuna']} - URL: {URL_ESTACION}{id_est}")
+                    print(f"\n{nombre_est} ({id_est}) - URL: {URL_ESTACION}{id_est}")
                     estaciones_impresas.add(id_est)
                     mensaje = descargar_mensaje_estacion(self.transport, id_est, include_tablas=True)
                     if mensaje:
@@ -147,10 +139,6 @@ class Sinca:
         return {
             'inicio': self._inicio,
             'fin': self._fin,
-            'id_regiones': self._id_regiones,
-            'id_estaciones': self._id_estaciones,
-            'cod_params': self._cod_params,
-            'altura': self.altura,
             'series_sel': self._series_sel,
             'muestreo': self.muestreo,
             'agregacion': self.agregacion,
@@ -164,13 +152,9 @@ class Sinca:
         parametro = norm.setdefault('parametro')
         altura = norm.setdefault('altura')
 
-        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
-        norm['id_regiones'] = id_regiones
-        norm['id_estaciones'] = id_estaciones
-        norm['cod_params'] = cod_params
-        norm['altura'] = alturas
+        _, _, _, _, series_sel = self._resolve_series(region, estacion, parametro, altura)
         norm['series_sel'] = series_sel
-        del norm['region'], norm['estacion'], norm['parametro'], #norm['altura']
+        del norm['region'], norm['estacion'], norm['parametro'], norm['altura']
 
         for key, value in norm.items():
             if key in ['inicio', 'fin']:
@@ -186,17 +170,13 @@ class Sinca:
             else:
                 raise ValueError(f"Variable de entrada desconocida: {key}")
             
-            if value is None: # estos se reemplazarán por defaults en el constructor, no deben quedar como None
+            if norm[key] is None: # estos se reemplazarán por defaults en el constructor, no deben quedar como None
                 del norm[key]
         return norm
     
     def _parse_inputs(self, inputs):
         inicio = inputs['inicio']
         fin = inputs['fin']
-        # id_regiones = inputs['id_regiones']
-        # id_estaciones = inputs['id_estaciones']
-        # cod_params = inputs['cod_params']
-        # alturas = inputs['alturas']
         series_sel = inputs['series_sel']
         muestreo = inputs['muestreo']
         agregacion = inputs['agregacion']
@@ -286,7 +266,7 @@ class Sinca:
 
     def _resolve_series(self, region=None, estacion=None, parametro=None, altura=None):
         
-        series_sel = self._series.copy()
+        series_sel = self._metadata.series.copy()
         nivel = [] # por jerarquía de inputs: region > estacion > parametro > altura
 
         nivel.append(region)
@@ -296,7 +276,7 @@ class Sinca:
                 mask = series_sel['id_reg'].isin(id_regiones)
                 series_sel = series_sel.loc[mask, :]
         elif region is not None:
-            id_regiones = input_region(region, self._regiones)
+            id_regiones = input_region(region, self._metadata.regiones)
             mask = series_sel['id_reg'].isin(id_regiones)
             series_sel = series_sel.loc[mask, :]
 
@@ -306,8 +286,8 @@ class Sinca:
             if id_estaciones is not None:
                 series_sel = series_sel.loc[(id_estaciones, slice(None)), :]
         elif estacion is not None:
-            id_estaciones, id_regiones = input_est(estacion, self._estaciones)
-            _xval_estacion(id_estaciones, series_sel, self._estaciones)
+            id_estaciones, id_regiones = input_est(estacion, self._metadata.estaciones)
+            _xval_estacion(id_estaciones, series_sel, self._metadata.estaciones)
             series_sel = series_sel.loc[(id_estaciones, slice(None)), :]
 
         nivel.append(parametro)
@@ -316,8 +296,8 @@ class Sinca:
             if cod_params is not None:
                 series_sel = series_sel.loc[(slice(None), cod_params), :]
         elif parametro is not None:
-            cod_params = input_param(parametro, self._parametros)
-            _xval_parametro(cod_params, series_sel, self._estaciones, self._parametros)
+            cod_params = input_param(parametro, self._metadata.parametros)
+            _xval_parametro(cod_params, series_sel, self._metadata.estaciones, self._metadata.parametros)
             series_sel = series_sel.loc[(slice(None), cod_params), :]
 
         nivel.append(altura)
@@ -328,7 +308,7 @@ class Sinca:
                 series_sel = series_sel.loc[mask, :]
         elif altura is not None:
             alturas = input_altura(altura)
-            _xval_altura(alturas, series_sel, self._estaciones, self._parametros)
+            _xval_altura(alturas, series_sel, self._metadata.estaciones, self._metadata.parametros)
             mask = series_sel['altura'].isin(alturas)
             series_sel = series_sel.loc[mask, :]
 
@@ -337,7 +317,7 @@ class Sinca:
         cod_params = series_sel.index.get_level_values(1).unique().tolist()
         alturas = series_sel['altura'].unique().tolist()
 
-        id_regiones = self._estaciones.loc[id_estaciones, 'id_reg'].unique().tolist()
+        id_regiones = self._metadata.estaciones.loc[id_estaciones, 'id_reg'].unique().tolist()
         return id_regiones, id_estaciones, cod_params, alturas, series_sel
 
 
@@ -352,7 +332,7 @@ class Sinca:
             self._id_regiones = None
             self._nombre_regiones = None
         else:
-            self._regiones_sel = self._regiones.loc[id_regiones]
+            self._regiones_sel = self._metadata.regiones.loc[id_regiones]
             self._id_regiones = self._regiones_sel.index.tolist()
             self._nombre_regiones = self._regiones_sel['nombre_region'].tolist()
 
@@ -361,7 +341,7 @@ class Sinca:
             self._id_estaciones = None
             self._nombre_estaciones = None
         else:
-            self._estaciones_sel = self._estaciones.loc[id_estaciones]
+            self._estaciones_sel = self._metadata.estaciones.loc[id_estaciones]
             self._id_estaciones = self._estaciones_sel.index.tolist()
             self._nombre_estaciones = self._estaciones_sel['nombre_est'].tolist()
 
@@ -370,7 +350,7 @@ class Sinca:
             self._cod_params = None
             self._nombre_params = None
         else:
-            self._parametros_sel = self._parametros.loc[cod_params]
+            self._parametros_sel = self._metadata.parametros.loc[cod_params]
             self._cod_params = self._parametros_sel.index.tolist()
             self._nombre_params = self._parametros_sel['nombre_param'].tolist()
 

@@ -1,3 +1,3 @@
-from .client import Sinca
+from .sinca import Sinca
 
 __all__ = ["Sinca"]
