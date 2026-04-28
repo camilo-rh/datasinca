@@ -17,9 +17,10 @@ from .models import DataSINCA
 
 class Sinca:
     def __init__(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
-                 fin=None, altura=None, muestreo='horario', agregacion=None, transport=None, data_path=None):
+                 muestreo='horario', agregacion=None, transport=None, data_path=None, log=False):
         
         self.logger = logging.getLogger("datasinca")
+        self._configure_logging(log)
 
         self._metadata = load_metadata(data_path)
 
@@ -82,7 +83,7 @@ class Sinca:
                         print(end='\t', flush=True)
                         self.logger.warning(f"{nombre_est} ({id_est}): {mensaje}"); print()
 
-                print(f"\t{nombre_param} (altura: {altura_str})",end=' - ', flush=True)
+                print(f"\t{alias_param} - altura: {altura_str}",end=' - ', flush=True)
 
                 try:
                     req = descargar_serie(
@@ -97,14 +98,14 @@ class Sinca:
                         transport=transport
                     )
                 except requests.exceptions.ConnectionError:
-                    self.logger.error(f"Error conexión SINCA: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
+                    self.logger.error(f"Error conexión SINCA: {alias_param} en {nombre_est} ({id_est})")
                     continue
                 print('Descargado. ... ', end='', flush=True)
                 df_raw, plot_vars, unidad = procesar_request(req.text)
                 
                 if df_raw is None:
                     print(end='\n\t')
-                    self.logger.warning(f"Sin datos: {nombre_param} ({cod_param}) en {nombre_est} ({id_est})")
+                    self.logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est})")
                     continue
 
                 columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
@@ -221,7 +222,7 @@ class Sinca:
 
     @property
     def parametro(self):
-        return self._nombre_params
+        return self._alias_params
 
     @parametro.setter
     def parametro(self, value):
@@ -348,17 +349,24 @@ class Sinca:
         if cod_params is None:
             self._parametros_sel = None
             self._cod_params = None
-            self._nombre_params = None
+            self._alias_params = None
         else:
             self._parametros_sel = self._metadata.parametros.loc[cod_params]
             self._cod_params = self._parametros_sel.index.tolist()
-            self._nombre_params = self._parametros_sel['nombre_param'].tolist()
+            self._alias_params = self._parametros_sel['alias_param'].tolist()
 
         if alturas is None:
             self._altura = None
         else:
             self._altura = alturas
 
+    def _configure_logging(self, log):
+        if log:
+            from .log_config import setup_logging
+            setup_logging()
+            self.logger.setLevel(logging.INFO)
+        else:
+            self.logger.setLevel(logging.WARNING)
 
     def __repr__(self):
         return (
@@ -378,7 +386,7 @@ class Sinca:
             "Sinca(\n"
             f"  region={self._nombre_regiones},\n"
             f"  estacion={self._nombre_estaciones},\n"
-            f"  parametro={self._nombre_params},\n"
+            f"  parametro={self._alias_params},\n"
             f"  altura={self._altura},\n"
             f"  muestreo={self._muestreo},\n"
             f"  agregacion={self._agregacion},\n"
