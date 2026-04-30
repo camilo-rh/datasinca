@@ -14,4 +14,24 @@ def test_descarga_estacion():
 
     assert res is not None
     assert not res.data.empty
-    assert res.data.index.equals(res.validez.index)
+    assert res.data.index.equals(res.estado_validacion.index)
+
+
+def test_mensaje_tabla():
+    from datasinca.downloader import descargar_mensaje_estacion
+    transport = FakeTransport("tests/data/msj_pudahuel.txt")
+
+    resultado = descargar_mensaje_estacion(transport, 123, include_tablas=True)
+
+    assert resultado is not None
+    assert isinstance(resultado, str)
+    assert "Atenuación" in resultado
+
+
+class FakeTransport:
+    def __init__(self, filepath):
+        with open(filepath, "r", encoding="utf-8") as f:
+            self.text = f.read()
+
+    def get(self, url):
+        return self

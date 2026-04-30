@@ -77,22 +77,23 @@ def descargar_mensaje_estacion(transport, id_est, include_tablas=False):
     if not match:
         return None
     mensaje = match.group()[13:-5]
+    match = re.search(r'<table\b.*?</table>', mensaje, flags=re.DOTALL | re.IGNORECASE)
 
-    if not include_tablas and re.search(r'<table\b', mensaje, flags=re.IGNORECASE):
-        return None
-    if include_tablas:
-        match = re.search(r'<table\b.*?</table>', mensaje, flags=re.DOTALL)
-        if not match:
-            return None
-        tabla = match.group()
-        df = pd.read_html(StringIO(tabla))[0]
-        tabla = df.to_string(index=False)
-        tabla = "\n".join(f"\t{line}" for line in tabla.splitlines())
-        prev_mensaje = (limpiar_mensaje(mensaje[:match.start()]) + "\n")
-        post_mensaje = ("\n" + limpiar_mensaje(mensaje[match.end():])).rstrip()
-        mensaje = prev_mensaje + tabla + post_mensaje
-    else:
-        mensaje = limpiar_mensaje(mensaje)
+    if not match:
+        return limpiar_mensaje(mensaje)
+    if not include_tablas:
+        mensaje = mensaje[:match.start()] + mensaje[match.end():]  
+        return limpiar_mensaje(mensaje)
+
+    tabla = match.group()
+    df = pd.read_html(StringIO(tabla))[0]
+    tabla = df.to_string(index=False)
+    tabla = "\n".join(f"\t{line}" for line in tabla.splitlines())
+
+    prev = limpiar_mensaje(mensaje[:match.start()])
+    post = limpiar_mensaje(mensaje[match.end():])
+
+    mensaje = (prev + "\n" + tabla + "\n" + post).strip()
     return mensaje
 
 def limpiar_mensaje(mensaje):
