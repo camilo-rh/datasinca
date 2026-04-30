@@ -1,3 +1,4 @@
+from importlib.resources import as_file, files
 from pathlib import Path
 import pandas as pd
 
@@ -19,11 +20,16 @@ class SincaMetadata:
 
 def load_metadata(data_path=None):
     if data_path is None:
-        base_path = Path(__file__).parent / "data"
+        base = files("datasinca.data")
+        with as_file(base) as base_path:
+            return _read_metadata(base_path)
     else:
         base_path = Path(data_path)
         if not base_path.is_absolute():
             base_path = Path.cwd() / base_path
+        return _read_metadata(base_path)
+
+def _read_metadata(base_path):
     regiones = pd.read_csv(base_path / "regiones.csv", sep=';')
     estaciones = pd.read_csv(base_path / "estaciones.csv", sep=';', dtype={'id_est': 'Int64', 'cod_est': 'string', 'id_reg': 'string'})
     parametros = pd.read_csv(base_path / "parametros.csv", sep=';', dtype={'cod_param': 'string', 'nombre_param': 'string', 'alias_param': 'string'})

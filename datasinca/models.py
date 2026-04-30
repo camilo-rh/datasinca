@@ -1,12 +1,11 @@
 import pandas as pd
 import re
 from .inputs import input_est, input_param, input_fecha
-from .metadata import load_metadata
 
 class DataSINCA:
-    def __init__(self, data, validez, metadata):
+    def __init__(self, data, estado_validacion, metadata):
         self.data = data # dataframe con datos de la serie, indexado por datetime
-        self.validez = validez # dataframe con validez de cada dato, indexado por datetime
+        self.estado_validacion = estado_validacion # dataframe con el estado de validación de cada dato, indexado por datetime
         self._metadata = metadata
     
     def estaciones(self):
