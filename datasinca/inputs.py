@@ -120,7 +120,7 @@ def input_param(parametros, df_parametros, mapto='cod_param'):
 
     return codigos
 
-def input_fecha(fecha):
+def input_fecha(fecha, permitir_futuro=False):
     today = datetime.date.today()
 
     if fecha is None:
@@ -136,7 +136,7 @@ def input_fecha(fecha):
     elif isinstance(fecha, int):
         if fecha <= 0:
             fecha = today + datetime.timedelta(days=fecha)
-        elif fecha > 0:
+        elif fecha > 0 and not permitir_futuro:
             raise Exception('No puedes ingresar un entero positivo (fecha futura)')
 
     # --- string ---
@@ -173,7 +173,7 @@ def input_fecha(fecha):
     else:
         raise TypeError("Tipo de fecha no soportado")
 
-    if fecha > today:
+    if fecha > today and not permitir_futuro:
         raise ValueError('No se permiten fechas futuras')
 
     return fecha
