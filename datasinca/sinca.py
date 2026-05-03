@@ -52,7 +52,7 @@ class Sinca:
 
         column_names = ['comuna','estacion','parametro', 'unidad', 'altura']
         lista_series_datos = []
-        lista_series_validez = []
+        lista_series_validacion = []
 
         estaciones_impresas = set()
 
@@ -112,23 +112,23 @@ class Sinca:
                     continue
 
                 columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
-                serie_datos, serie_validez = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validez)
+                serie_datos, serie_validacion = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validacion)
                 print('Procesado')
                 lista_series_datos.append(serie_datos) # acumular series
-                lista_series_validez.append(serie_validez)
+                lista_series_validacion.append(serie_validacion)
 
-        # concatenar series datos y validez en dataframes
+        # concatenar series datos y validacion en dataframes
         if lista_series_datos:
             df_datos = pd.concat(lista_series_datos, axis=1)
-            df_validez = pd.concat(lista_series_validez, axis=1)
+            df_validacion = pd.concat(lista_series_validacion, axis=1)
             # nombres de niveles de columnas (MultiIndex)
             df_datos.columns.names = column_names
-            df_validez.columns.names = column_names
+            df_validacion.columns.names = column_names
         else:
             df_datos = pd.DataFrame()
-            df_validez = pd.DataFrame()
+            df_validacion = pd.DataFrame()
 
-        return DataSINCA(df_datos, df_validez, self._metadata)
+        return DataSINCA(df_datos, df_validacion, self._metadata)
     
     def set(self, **kwargs):
         for key, value in kwargs.items():
@@ -344,6 +344,7 @@ class Sinca:
             self._estaciones_sel = None
             self._id_estaciones = None
             self._nombre_estaciones = None
+            self._estaciones_ux = None
         else:
             self._estaciones_sel = self._metadata.estaciones.loc[id_estaciones]
             self._id_estaciones = self._estaciones_sel.index.tolist()

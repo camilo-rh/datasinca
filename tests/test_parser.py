@@ -7,15 +7,15 @@ def test_procesar_request_texto_real():
         raw_text = f.read()
 
     df_raw, plot_vars, unidad = procesar_request(raw_text)
-    serie_datos, serie_validez = remcol(df_raw, columna, plot_vars)
+    serie_datos, serie_validacion = remcol(df_raw, columna, plot_vars)
 
     assert serie_datos is not None
-    assert serie_validez is not None
+    assert serie_validacion is not None
 
     assert not serie_datos.empty
-    assert not serie_validez.empty
+    assert not serie_validacion.empty
 
-    assert serie_datos.index.equals(serie_validez.index)
+    assert serie_datos.index.equals(serie_validacion.index)
 
     assert isinstance(unidad, str)
     assert "ppb" in unidad.lower()

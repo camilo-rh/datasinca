@@ -4,9 +4,9 @@ from .inputs import input_est, input_param, input_fecha
 import warnings
 
 class DataSINCA:
-    def __init__(self, data, estado_validacion, metadata):
+    def __init__(self, data, validacion, metadata):
         self.data = data # dataframe con datos de la serie, indexado por datetime
-        self.estado_validacion = estado_validacion # dataframe con el estado de validación de cada dato, indexado por datetime
+        self.validacion = validacion # dataframe con el estado de validación de cada dato, indexado por datetime
         self._metadata = metadata
     
     def estaciones(self):
@@ -32,7 +32,7 @@ class DataSINCA:
             ds = self.contaminantes()
         else:
             ds = self
-        return ds.estado_validacion.apply(lambda x: x.value_counts()).astype('Int64').T
+        return ds.validacion.apply(lambda x: x.value_counts()).astype('Int64').T
 
     def resumen(self):
         """
@@ -77,9 +77,9 @@ class DataSINCA:
 
         if isinstance(nivel, str):
             nivel = [nivel]
-        mask = self.estado_validacion.isin(nivel)
+        mask = self.validacion.isin(nivel)
         return DataSINCA(self.data.where(mask, other=fill_value),
-                         self.estado_validacion.where(mask, other=fill_value),
+                         self.validacion.where(mask, other=fill_value),
                          self._metadata)
 
     def sel(self, comuna=None, estacion=None, parametro=None, unidad=None, altura=None):
@@ -99,7 +99,7 @@ class DataSINCA:
         comuna = comuna if comuna is not None else slice(None)
         unidad = unidad if unidad is not None else slice(None)
         return DataSINCA(self.data.loc[:, idx[comuna, estacion, parametro, unidad, altura]],
-                         self.estado_validacion.loc[:, idx[comuna, estacion, parametro, unidad, altura]],
+                         self.validacion.loc[:, idx[comuna, estacion, parametro, unidad, altura]],
                          self._metadata)
 
     def buscar_estacion(self, selector):
@@ -113,17 +113,17 @@ class DataSINCA:
         mask = cols.get_level_values('estacion').str.contains(pattern, case=False, na=False, regex=True)
 
         return DataSINCA(self.data.loc[:, mask],
-                        self.estado_validacion.loc[:, mask],
+                        self.validacion.loc[:, mask],
                         self._metadata)
 
     def swap_levels(self, nivel1, nivel2):
         return DataSINCA(self.data.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
-                         self.estado_validacion.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
+                         self.validacion.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
                          self._metadata)
 
     def drop_empty_columns(self):
         data = self.data.dropna(axis=1, how='all').copy()
-        estado = self.estado_validacion.loc[:, data.columns].copy()
+        estado = self.validacion.loc[:, data.columns].copy()
         return DataSINCA(data,
                          estado,
                          self._metadata)
@@ -151,7 +151,7 @@ class DataSINCA:
         df = self.data.copy()
         df.columns = flat
 
-        dfv = self.estado_validacion.copy()
+        dfv = self.validacion.copy()
         dfv.columns = flat
         return DataSINCA(df, dfv, self._metadata)
 
@@ -165,7 +165,7 @@ class DataSINCA:
         inicio = input_fecha(inicio, permitir_futuro=True)
         fin = input_fecha(fin, permitir_futuro=True)  
         return DataSINCA(self.data.loc[inicio:fin],
-                         self.estado_validacion.loc[inicio:fin],
+                         self.validacion.loc[inicio:fin],
                          self._metadata)
     
     def tipo(self):

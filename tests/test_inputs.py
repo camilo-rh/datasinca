@@ -44,15 +44,15 @@ def test_estacion_dependencia_region():
     from datasinca import Sinca
     s = Sinca()
     s.estacion = 296
-    assert s.estacion == ['Cochrane']
+    assert 'Cochrane' in s.estacion.values
     assert s.region == ['Aysén']
     assert s.parametro is not None
     
     params_cochrane = s.parametro
     s.region = 'M'
     assert s.region == ['Metropolitana']
-    assert 'Parque O\'Higgins' in s.estacion
-    assert 'Cochrane' not in s.estacion
+    assert 'Parque O\'Higgins' in s.estacion.values
+    assert 'Cochrane' not in s.estacion.values
     assert s.parametro != params_cochrane
     s.close()
 

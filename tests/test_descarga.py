@@ -14,7 +14,7 @@ def test_descarga_estacion():
 
     assert res is not None
     assert not res.data.empty
-    assert res.data.index.equals(res.estado_validacion.index)
+    assert res.data.index.equals(res.validacion.index)
 
 
 def test_mensaje_tabla():
