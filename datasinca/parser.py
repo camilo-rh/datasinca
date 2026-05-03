@@ -33,18 +33,24 @@ def remcol(df,columname, plot_vars):
             print("Hay múltiples valores por hora. Revisa las filas con índices duplicados.")
         serie_param = (df_['Valname'].str.replace(',', '.', regex=False)
                     .pipe(pd.to_numeric, errors='coerce').rename(columname))
-        serie_validez = df_['variable'].rename(columname)
-        return serie_param, serie_validez
+        estado_validacion = df_['variable'].rename(columname)
+        estado_validacion[serie_param.isna()] = pd.NA
         
     # Caso meteorológico (una sola columna)
     elif len(plot_vars)==1:
         serie_param = (df_[2].astype(str).str.replace(',', '.', regex=False)
                     .pipe(pd.to_numeric, errors='coerce').rename(columname))
-        serie_validez = pd.Series(data='sin_info', index=serie_param.index, name=columname)
-        return serie_param, serie_validez
+        estado_validacion = pd.Series(pd.NA, index=serie_param.index, name=columname)
     else:
         raise ValueError("Número inesperado de variables en el header. Se esperaban 1 o 3.")
     
+    dtype_validacion = pd.CategoricalDtype(
+        categories=['validado', 'preliminar', 'novalidado'],
+        ordered=True
+        )
+    estado_validacion = estado_validacion.astype(dtype_validacion)
+    return serie_param, estado_validacion
+
 
 def procesar_request(req_text):
     # validación de contenido

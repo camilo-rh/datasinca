@@ -1,6 +1,6 @@
 import requests
 import re
-import html
+from lxml import html
 import pandas as pd
 from io import StringIO
 
@@ -11,24 +11,19 @@ AGREGACION_DEFECTO = {'horario': 'horario',
                      'diario': 'diario',
                      'discreto': 'diario'}
 
-PARAMS_CAL = {'PM25', 'PM10', '0003', '0NOX', '0001', '0008', '0004', '0002', 'CTOT', 'TRSG',
-                'THCM', 'PM2D', '00Cu', 'PM1D', 'ARSE', '00Pb', '0CH4', 'CORG', '00Ni', 'NMHC'}
-PARAMS_MET = {'TEMP', 'WSPD', 'RHUM', 'PRES', 'SOL', 'RAIN', 'GLOB'}
-PARAMS_WDIR = {'WDIR'}
-
-def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,agregacion):
+def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,agregacion,tipo_param):
         codaltura = str(altura if altura != "S/I" else 0).rjust(3, '0')
         agregacion = AGREGACION_DEFECTO.get(muestreo, 'horario') if agregacion is None else agregacion
         url = f"{URL_DESCARGA}{codreg}/{codest}/"
 
-        if codparam in PARAMS_CAL:
+        if tipo_param == 'cal':
             url += f'Cal/{codparam}//{codparam}.{muestreo}.{agregacion}'
-        elif codparam in PARAMS_MET:
+        elif tipo_param == 'met':
             url += f'Met/{codparam}//{muestreo}_{codaltura}'
-        elif codparam in PARAMS_WDIR:
-            url += f'Met/{codparam}//{muestreo}_{codaltura}_spec'
+            if codparam == 'WDIR':
+                url += '_spec'
         else:
-            raise ValueError(f'Parámetro no reconocido: {codparam}')
+            raise ValueError(f'Tipo de parámetro no reconocido: {tipo_param}')
         
         url += f'.ic&from={inicio}&to={fin}&path=/usr/airviro/data/CONAMA/&lang=esp&rsrc=&macropath='
         return url
@@ -64,8 +59,8 @@ class Transport:
         if not self._external_session and self.session:
             self.session.close()
 
-def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, agregacion, transport=None):
-    url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,muestreo,agregacion)
+def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, agregacion, tipo_param, transport=None):
+    url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,muestreo,agregacion,tipo_param)
     transport = transport or Transport()
     return transport.get(url)
 
@@ -73,31 +68,40 @@ def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, 
 def descargar_mensaje_estacion(transport, id_est, include_tablas=False):
     text = transport.get(URL_ESTACION + str(id_est)).text
 
-    match = re.search(r'"mensajeStn".*?</div', text, flags=re.DOTALL)
-    if not match:
+    tree = html.fromstring(text)
+    div = tree.xpath('//div[contains(@class, "mensajeStn")]')
+    if not div:
         return None
-    mensaje = match.group()[13:-5]
-    match = re.search(r'<table\b.*?</table>', mensaje, flags=re.DOTALL | re.IGNORECASE)
+    
+    div = div[0]
 
+    div_text = html.tostring(div, encoding='unicode')
+    match = re.search(r'<table\b.*?</table>', div_text, flags=re.DOTALL | re.IGNORECASE)
     if not match:
-        return limpiar_mensaje(mensaje)
+        return limpiar_mensaje_elemento(div)
+    
     if not include_tablas:
-        mensaje = mensaje[:match.start()] + mensaje[match.end():]  
-        return limpiar_mensaje(mensaje)
+        tablas = div.xpath('.//table')
+        for tabla in tablas:
+            tabla.getparent().remove(tabla)
+        return limpiar_mensaje_elemento(div)
 
     tabla = match.group()
     df = pd.read_html(StringIO(tabla))[0]
     tabla = df.to_string(index=False)
     tabla = "\n".join(f"\t{line}" for line in tabla.splitlines())
 
-    prev = limpiar_mensaje(mensaje[:match.start()])
-    post = limpiar_mensaje(mensaje[match.end():])
+    prev = html.fromstring(div_text[:match.start()])
+    post = html.fromstring(div_text[match.end():])
+    prev = limpiar_mensaje_elemento(prev)
+    post = limpiar_mensaje_elemento(post)
 
     mensaje = (prev + "\n" + tabla + "\n" + post).strip()
+
     return mensaje
 
-def limpiar_mensaje(mensaje):
-    mensaje = re.sub(r'<[^>]+>', '', mensaje)
-    mensaje = html.unescape(mensaje)
-    mensaje = re.sub(r'\s+', ' ', mensaje).strip()
-    return mensaje
+def limpiar_mensaje_elemento(elem):
+    texto = elem.text_content()
+    texto = re.sub(r'\s+', ' ', texto).strip()
+    return texto
+

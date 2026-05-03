@@ -63,14 +63,16 @@ class Sinca:
             print(f" Region {nombre_region} ({id_reg}) ".center(width, '-'))
             for (id_est, cod_param), row_serie in series_reg.sort_index().iterrows():
                 row_est = self._metadata.estaciones.loc[id_est]
+                row_param = self._metadata.parametros.loc[cod_param]
                 nombre_est = row_est['nombre_est']
                 cod_est = row_est['cod_est']
                 nombre_comuna = row_est['comuna']
                 id_reg = row_est['id_reg']
                 cod_reg = self._metadata.regiones.loc[id_reg,'cod_reg']
 
-                nombre_param = self._metadata.parametros.loc[cod_param,'nombre_param']
-                alias_param = self._metadata.parametros.loc[cod_param,'alias_param']
+                nombre_param = row_param['nombre_param']
+                alias_param = row_param['alias_param']
+                tipo_param = row_param['tipo_param']
                 altura_actual = row_serie['altura']
                 altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
 
@@ -95,6 +97,7 @@ class Sinca:
                         altura=altura_actual,
                         muestreo=muestreo,
                         agregacion=agregacion,
+                        tipo_param=tipo_param,
                         transport=transport
                     )
                 except requests.exceptions.ConnectionError:
