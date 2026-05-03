@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 from .inputs import input_est, input_param, input_fecha
+import warnings
 
 class DataSINCA:
     def __init__(self, data, estado_validacion, metadata):
@@ -20,11 +21,18 @@ class DataSINCA:
     def periodo(self):
         return (self.data.index.min(), self.data.index.max())
     
-    def conteo_validacion(self):
-        return self.estado_validacion.apply(lambda x: x.value_counts(dropna=False)).sum(axis=1).astype('Int64')
+    def conteo_validacion(self):      
+        return self.conteo_validacion_por_serie().sum().to_frame(name="conteo")
 
     def conteo_validacion_por_serie(self):
-        return self.estado_validacion.apply(lambda x: x.value_counts(dropna=False)).astype('Int64').T
+        if self.tipo() in ['meteo', None]:
+            raise ValueError("Este DataSINCA no contiene variables con validación")
+        elif self.tipo() == 'mixto':
+            warnings.warn("El conteo de validación solo se aplica a los contaminantes.", UserWarning, stacklevel=2)
+            ds = self.contaminantes()
+        else:
+            ds = self
+        return ds.estado_validacion.apply(lambda x: x.value_counts()).astype('Int64').T
 
     def resumen(self):
         """
@@ -34,15 +42,39 @@ class DataSINCA:
         num_parametros = self.data.columns.get_level_values('parametro').nunique()
         periodo = (self.data.index.min(), self.data.index.max())
         conteo_validacion = self.conteo_validacion()
-        
+        print()
         print(f"Numero de estaciones: {num_estaciones}")
         print(f"Numero de parámetros: {num_parametros}")
         print(f"Periodo: {periodo[0].date()} a {periodo[1].date()}")
         print("Conteo por estado de validación:")
-        print(conteo_validacion)
+        for index, row in conteo_validacion.iterrows():
+            print(f'\t{str(index).ljust(13)}: {row["conteo"]}')
 
+    def contaminantes(self):
+        mask = self._metadata.parametros['tipo_param'] == 'cal'
+        alias_cal = self._metadata.parametros.loc[mask, 'alias_param'].tolist()
+        conts = [param for param in self.parametros() if param in alias_cal]
+        return self.sel(parametro=conts)
+    
+    def meteorologicos(self):
+        mask = self._metadata.parametros['tipo_param'] == 'met'
+        alias_meteo = self._metadata.parametros.loc[mask, 'alias_param'].tolist()
+        meteo = [param for param in self.parametros() if param in alias_meteo]
+        return self.sel(parametro=meteo)
+    
+    def sep_contam_meteo(self):
+        alias_cal = self._metadata.parametros.loc[self._metadata.parametros['tipo_param'] == 'cal', 'alias_param'].tolist()
+        conts = [param for param in self.parametros() if param in alias_cal]
+        meteo = [param for param in self.parametros() if param not in alias_cal]
+        return self.sel(parametro=conts), self.sel(parametro=meteo)
     
     def filtrar_validacion(self, nivel, fill_value=None): #'validado', 'preliminar', 'novalidado'
+        tipo = self.tipo()
+        if tipo == 'meteo':
+            raise ValueError("Este DataSINCA no contiene variables con validación")
+        elif tipo == 'mixto':
+             warnings.warn("Este DataSINCA contiene variables meteorológicas y contaminantes. La validación solo se aplicará a los contaminantes.")
+
         if isinstance(nivel, str):
             nivel = [nivel]
         mask = self.estado_validacion.isin(nivel)
@@ -89,12 +121,45 @@ class DataSINCA:
                          self.estado_validacion.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
                          self._metadata)
 
-    def flatten_columns(self, sep=' | '):
+    def drop_empty_columns(self):
+        data = self.data.dropna(axis=1, how='all').copy()
+        estado = self.estado_validacion.loc[:, data.columns].copy()
+        return DataSINCA(data,
+                         estado,
+                         self._metadata)
+
+    def flatten_levels(self, keep='all', sep='|'):
+        cols = self.data.columns
+        if keep == 'all':
+            keep = list(cols.names)
+        elif isinstance(keep, str):
+            keep = [keep]
+        else:
+            keep = list(keep)
+
+        missing = set(keep) - set(cols.names)
+        if missing:
+            raise ValueError(f"Niveles no válidos: {missing}. Disponibles: {cols.names}")
+        drop = [l for l in cols.names if l not in keep]
+        new_cols = cols.droplevel(drop) if drop else cols
+
+        if isinstance(new_cols, pd.MultiIndex):
+            flat = new_cols.map(lambda x: sep.join(map(str, x)))
+        else:
+            flat = new_cols.astype(str)
+
         df = self.data.copy()
-        df.columns = [sep.join(map(str, col)) for col in df.columns]
+        df.columns = flat
+
         dfv = self.estado_validacion.copy()
-        dfv.columns = df.columns
+        dfv.columns = flat
         return DataSINCA(df, dfv, self._metadata)
+
+    def flatten_nonconstant_levels(self, sep='|'):
+        columns = self.data.columns
+        keep = [name for i, name in enumerate(columns.names)
+                if columns.get_level_values(i).nunique() > 1]
+        return self.flatten_levels(keep=keep, sep=sep)
 
     def entre(self, inicio=None, fin=None):
         inicio = input_fecha(inicio, permitir_futuro=True)
@@ -102,6 +167,37 @@ class DataSINCA:
         return DataSINCA(self.data.loc[inicio:fin],
                          self.estado_validacion.loc[inicio:fin],
                          self._metadata)
+    
+    def tipo(self):
+        if self.contiene_meteo() and self.contiene_contam():
+            return "mixto"
+        elif self.contiene_meteo():
+            return "meteo"
+        elif self.contiene_contam():
+            return "contam"
+        elif self.data.empty:
+            warnings.warn("El DataSINCA está vacío. No se puede determinar si contiene datos meteorológicos o contaminantes.", UserWarning)
+            return None
+
+    def contiene_meteo(self):
+        alias_meteo = self._alias_meteo()
+        contiene_meteo = any(param in alias_meteo for param in self.parametros())
+        return contiene_meteo
+    
+    def contiene_contam(self):
+        alias_contam = self._alias_contam()
+        contiene_contam = any(param in alias_contam for param in self.parametros())
+        return contiene_contam
+
+    def _alias_contam(self):
+        mask = self._metadata.parametros['tipo_param'] == 'cal'
+        alias_cal = self._metadata.parametros.loc[mask, 'alias_param'].tolist()
+        return alias_cal
+
+    def _alias_meteo(self):
+        mask = self._metadata.parametros['tipo_param'] == 'met'
+        alias_meteo = self._metadata.parametros.loc[mask, 'alias_param'].tolist()
+        return alias_meteo
     
     def __repr__(self):
         return f"DataSINCA(data.shape={self.data.shape})"
@@ -117,7 +213,7 @@ def _normalize_altura(altura):
         return [_normalize_altura(a) for a in altura]
 
     if isinstance(altura, (int, float)):
-        return f"{int(altura)} m"
+        return f"{int(altura)}m"
 
     if isinstance(altura, str):
         a = altura.strip().lower()
@@ -128,6 +224,6 @@ def _normalize_altura(altura):
         if a.endswith("m"):
             num = a.replace("m", "").strip()
             if num.isdigit():
-                return f"{int(num)} m"
+                return f"{int(num)}m"
 
     return altura

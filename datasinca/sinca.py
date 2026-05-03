@@ -74,7 +74,7 @@ class Sinca:
                 alias_param = row_param['alias_param']
                 tipo_param = row_param['tipo_param']
                 altura_actual = row_serie['altura']
-                altura_str = f"{altura_actual} m" if isinstance(altura_actual, int) else altura_actual
+                altura_str = f"{altura_actual}m" if isinstance(altura_actual, int) else altura_actual
 
                 if id_est not in estaciones_impresas:
                     print(f"\n{nombre_est} ({id_est}) - URL: {URL_ESTACION}{id_est}")
@@ -216,7 +216,7 @@ class Sinca:
 
     @property
     def estacion(self):
-        return self._nombre_estaciones
+        return self._estaciones_ux
 
     @estacion.setter
     def estacion(self, value):
@@ -348,6 +348,7 @@ class Sinca:
             self._estaciones_sel = self._metadata.estaciones.loc[id_estaciones]
             self._id_estaciones = self._estaciones_sel.index.tolist()
             self._nombre_estaciones = self._estaciones_sel['nombre_est'].tolist()
+            self._estaciones_ux = self._metadata.estaciones.loc[self._id_estaciones]['nombre_est'].to_frame()
 
         if cod_params is None:
             self._parametros_sel = None
