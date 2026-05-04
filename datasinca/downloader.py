@@ -11,9 +11,9 @@ AGREGACION_DEFECTO = {'horario': 'horario',
                      'diario': 'diario',
                      'discreto': 'diario'}
 
-def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,agregacion,tipo_param):
+def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,tipo_param):
         codaltura = str(altura if altura != "S/I" else 0).rjust(3, '0')
-        agregacion = AGREGACION_DEFECTO.get(muestreo, 'horario') if agregacion is None else agregacion
+        agregacion = AGREGACION_DEFECTO.get(muestreo, 'horario')
         url = f"{URL_DESCARGA}{codreg}/{codest}/"
 
         if tipo_param == 'cal':
@@ -59,8 +59,8 @@ class Transport:
         if not self._external_session and self.session:
             self.session.close()
 
-def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, agregacion, tipo_param, transport=None):
-    url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,muestreo,agregacion,tipo_param)
+def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, tipo_param, transport=None):
+    url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,muestreo,tipo_param)
     transport = transport or Transport()
     return transport.get(url)
 

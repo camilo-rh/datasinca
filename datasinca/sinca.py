@@ -9,7 +9,7 @@ import pandas as pd
 import logging
 import shutil
 from .metadata import load_metadata
-from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo, input_agregacion
+from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo
 from .validators import _xval_estacion, _xval_parametro, _xval_altura
 from .downloader import Transport, descargar_serie, URL_ESTACION, descargar_mensaje_estacion
 from .parser import procesar_request, remcol
@@ -18,10 +18,10 @@ from .models import DataSINCA
 class Sinca:
     _allowed_attrs = {"inicio", "fin", "region", "estacion",
                       "parametro", "altura", "muestreo",
-                      "agregacion", "transport", 'data_path', "log"}
+                      "transport", 'data_path', "log"}
     
     def __init__(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
-                 muestreo='horario', agregacion=None, transport=None, data_path=None, log=False):
+                 muestreo='horario', transport=None, data_path=None, log=False):
         
         self._logger = logging.getLogger("datasinca")
         self._configure_logging(log)
@@ -35,7 +35,6 @@ class Sinca:
         self.inicio = inicio
         self.fin = fin
         self.muestreo = muestreo
-        self.agregacion = agregacion
         self._external_transport = transport is not None
         self.transport = transport or Transport()
 
@@ -43,11 +42,11 @@ class Sinca:
         
         self._initialized = True
     def descarga(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
-                 muestreo=None, agregacion=None, transport=None):        
-        kwargs = self._normalizar_inputs(inicio, fin, region, estacion, parametro, altura, muestreo, agregacion, transport)
+                 muestreo=None, transport=None):        
+        kwargs = self._normalizar_inputs(inicio, fin, region, estacion, parametro, altura, muestreo, transport)
         inputs = {**self._build_params(), **kwargs}
 
-        inicio, fin, series_sel, muestreo, agregacion, transport = self._parse_inputs(inputs)
+        inicio, fin, series_sel, muestreo, transport = self._parse_inputs(inputs)
         filtros = {k:v for k,v in inputs.items() if not k in ['series_sel', 'transport']}
         self._logger.info(f"Inicio descarga SINCA | {filtros}")
 
@@ -100,19 +99,18 @@ class Sinca:
                         cod_est=cod_est,
                         altura=altura_actual,
                         muestreo=muestreo,
-                        agregacion=agregacion,
                         tipo_param=tipo_param,
                         transport=transport
                     )
                 except requests.exceptions.ConnectionError:
-                    self._logger.error(f"Error conexión SINCA: {alias_param} en {nombre_est} ({id_est})")
+                    self._logger.error(f"Error de conexión con SINCA: no se pudo verificar datos para {alias_param} en {nombre_est} ({id_est}) [muestreo={muestreo}, altura={altura_str}]")
                     continue
                 print('Descargado. ... ', end='', flush=True)
                 df_raw, plot_vars, unidad = procesar_request(req.text)
                 
                 if df_raw is None:
                     print('---> ', end='', flush=True)
-                    self._logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est})")
+                    self._logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est}) [muestreo={muestreo}, altura={altura_str}]")
                     continue
 
                 columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
@@ -153,11 +151,10 @@ class Sinca:
             'cod_params': self._cod_params,
             'altura': self._altura,
             'muestreo': self.muestreo,
-            'agregacion': self.agregacion,
             'transport': self.transport,
             }
     
-    def _normalizar_inputs(self, inicio, fin, region, estacion, parametro, altura, muestreo, agregacion, transport):
+    def _normalizar_inputs(self, inicio, fin, region, estacion, parametro, altura, muestreo, transport):
         id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
 
         norm = dict()
@@ -173,8 +170,6 @@ class Sinca:
             norm['fin'] = input_fecha(fin)
         if muestreo is not None:
             norm['muestreo'] = input_muestreo(muestreo)
-        if agregacion is not None:
-            norm['agregacion'] = input_agregacion(agregacion)
         if transport is not None:
             norm['transport'] = transport
 
@@ -188,9 +183,8 @@ class Sinca:
         fin = inputs['fin']
         series_sel = inputs['series_sel']
         muestreo = inputs['muestreo']
-        agregacion = inputs['agregacion']
         transport = inputs['transport']
-        return inicio, fin, series_sel, muestreo, agregacion, transport
+        return inicio, fin, series_sel, muestreo, transport
     
 
 
@@ -253,14 +247,6 @@ class Sinca:
     @muestreo.setter
     def muestreo(self, value):
         self._muestreo = input_muestreo(value)
-
-    @property
-    def agregacion(self):
-        return self._agregacion
-
-    @agregacion.setter
-    def agregacion(self, value):
-        self._agregacion = input_agregacion(value)
 
     def __setattr__(self, name, value):
         # Permitir atributos públicos válidos
@@ -394,7 +380,6 @@ class Sinca:
             f"  parametro={self._cod_params},\n"
             f"  altura={self._altura},\n"
             f"  muestreo={self._muestreo},\n"
-            f"  agregacion={self._agregacion},\n"
             f"  inicio={self.inicio}, fin={self.fin}"
             ")"
         )
@@ -407,7 +392,6 @@ class Sinca:
             f"  parametro={self._alias_params},\n"
             f"  altura={self._altura},\n"
             f"  muestreo={self._muestreo},\n"
-            f"  agregacion={self._agregacion},\n"
             f"  inicio={self.inicio}, fin={self.fin}"
             ")"
         )

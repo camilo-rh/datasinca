@@ -1,9 +1,7 @@
 import unicodedata
 import datetime
 
-
 MUESTREOS_VALIDOS = {'horario', 'diario', 'discreto'}
-AGREGACIONES_VALIDAS = {'horario', 'diario', 'mensual', 'trimestral', 'anual'}
 
 def input_muestreo(muestreo):
     if muestreo is None:
@@ -11,11 +9,6 @@ def input_muestreo(muestreo):
     elif muestreo not in MUESTREOS_VALIDOS:
         raise ValueError(f"Muestreo no válido: {muestreo}")
     return muestreo
-
-def input_agregacion(agregacion):
-    if agregacion is not None and agregacion not in AGREGACIONES_VALIDAS:
-        raise ValueError(f"Agregación no válida: {agregacion}")
-    return agregacion
 
 def input_altura(altura):
     if isinstance(altura, list) and all(isinstance(a, int) for a in altura):
