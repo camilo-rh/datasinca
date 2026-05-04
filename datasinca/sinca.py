@@ -16,10 +16,14 @@ from .parser import procesar_request, remcol
 from .models import DataSINCA
 
 class Sinca:
+    _allowed_attrs = {"inicio", "fin", "region", "estacion",
+                      "parametro", "altura", "muestreo",
+                      "agregacion", "transport", 'data_path', "log"}
+    
     def __init__(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
                  muestreo='horario', agregacion=None, transport=None, data_path=None, log=False):
         
-        self.logger = logging.getLogger("datasinca")
+        self._logger = logging.getLogger("datasinca")
         self._configure_logging(log)
 
         self._metadata = load_metadata(data_path)
@@ -36,7 +40,8 @@ class Sinca:
         self.transport = transport or Transport()
 
         self._mensajes_cache = {}
-
+        
+        self._initialized = True
     def descarga(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
                  muestreo=None, agregacion=None, transport=None):        
         kwargs = self._normalizar_inputs(inicio, fin, region, estacion, parametro, altura, muestreo, agregacion, transport)
@@ -44,7 +49,7 @@ class Sinca:
 
         inicio, fin, series_sel, muestreo, agregacion, transport = self._parse_inputs(inputs)
         filtros = {k:v for k,v in inputs.items() if not k in ['series_sel', 'transport']}
-        self.logger.info(f"Inicio descarga SINCA | {filtros}")
+        self._logger.info(f"Inicio descarga SINCA | {filtros}")
 
         inicio = inicio.strftime('%y%m%d')
         fin = fin.strftime('%y%m%d')
@@ -82,7 +87,7 @@ class Sinca:
                     if mensaje:
                         self._mensajes_cache[id_est] = mensaje
                         print(end='\t', flush=True)
-                        self.logger.warning(f"{nombre_est} ({id_est}): {mensaje}"); print()
+                        self._logger.warning(f"{nombre_est} ({id_est}): {mensaje}"); print()
 
                 print(f"\t{alias_param} - altura: {altura_str}",end=' - ', flush=True)
 
@@ -100,14 +105,14 @@ class Sinca:
                         transport=transport
                     )
                 except requests.exceptions.ConnectionError:
-                    self.logger.error(f"Error conexión SINCA: {alias_param} en {nombre_est} ({id_est})")
+                    self._logger.error(f"Error conexión SINCA: {alias_param} en {nombre_est} ({id_est})")
                     continue
                 print('Descargado. ... ', end='', flush=True)
                 df_raw, plot_vars, unidad = procesar_request(req.text)
                 
                 if df_raw is None:
                     print('---> ', end='', flush=True)
-                    self.logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est})")
+                    self._logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est})")
                     continue
 
                 columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
@@ -258,15 +263,19 @@ class Sinca:
         self._agregacion = input_agregacion(value)
 
     def __setattr__(self, name, value):
-        cls = type(self)
-        if hasattr(cls, name) and name not in self.__dict__:
-            attr = getattr(cls, name)
+        # Permitir atributos públicos válidos
+        if name in self._allowed_attrs:
+            return super().__setattr__(name, value)
 
-            if isinstance(attr, property) and attr.fset is not None:
-                attr.fset(self, value)
-                return
-            raise AttributeError(f"No puedes sobrescribir '{name}'")
-        super().__setattr__(name, value)
+        # Permitir atributos internos SOLO si ya existen
+        if name.startswith("_") and name in self.__dict__:
+            return super().__setattr__(name, value)
+
+        # Permitir creación de internos durante __init__
+        if name.startswith("_") and not hasattr(self, "_initialized"):
+            return super().__setattr__(name, value)
+
+        raise AttributeError(f"Atributo no válido: '{name}'")
 
     def _resolve_series(self, region=None, estacion=None, parametro=None, altura=None):
         
@@ -373,9 +382,9 @@ class Sinca:
         if log:
             from .log_config import setup_logging
             setup_logging()
-            self.logger.setLevel(logging.INFO)
+            self._logger.setLevel(logging.INFO)
         else:
-            self.logger.setLevel(logging.WARNING)
+            self._logger.setLevel(logging.WARNING)
 
     def __repr__(self):
         return (
