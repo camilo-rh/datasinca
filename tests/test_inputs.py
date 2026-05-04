@@ -1,16 +1,17 @@
 def test_default_values():
     from datasinca import Sinca
     from datetime import date
+    import pandas as pd
     s = Sinca()
 
-    assert s.region is None
-    assert s.estacion is None
-    assert s.parametro is None
+    assert set(s._id_regiones) == set(['II', 'V', 'IV', 'IX', 'VIII', 'VII', 'III', 'VI', 'XIV', 'X', 'M', 'I', 'XI', 'XV','XII'])
+    assert len(s._id_estaciones) > 100
+    assert len(s._cod_params) > 0 and s._cod_params is not None
     assert s.inicio == date.today().strftime('%d/%m/%Y')
     assert s.fin == date.today().strftime('%d/%m/%Y')
-    assert s.altura is None
-    assert s.muestreo == 'horario'
-    assert s.agregacion is None
+    assert len(s._altura) > 4 and 'S/I' in s._altura
+    assert s._muestreo == 'horario'
+    assert s._agregacion is None
     s.close()
 
 def test_basic_inputs():
@@ -23,37 +24,36 @@ def test_basic_inputs():
     s.muestreo = 'diario'
     assert s.inicio == date(2024, 1, 1).strftime('%d/%m/%Y')
     assert s.fin == date(2024, 1, 31).strftime('%d/%m/%Y')
-    assert s.altura == [3]
-    assert s.muestreo == 'diario'
+    assert s._altura == [3]
+    assert s._muestreo == 'diario'
     s.close()
 
 def test_region_mapping():
     from datasinca import Sinca
     s = Sinca()
     s.region = 5
-    assert s.region == ['Valparaíso']
+    assert s._id_regiones[0] == 'V'
     s.region = 'XI'
-    assert s.region == ['Aysén']
+    assert s._id_regiones[0] == 'XI'
     s.region = 'tarapaca'
-    assert s.region == ['Tarapacá']
+    assert s._id_regiones[0] == 'I'
     s.region = ['metropolitana', 'antofagasta']
-    assert set(s.region) == {'Metropolitana', 'Antofagasta'}
+    assert set(s._id_regiones) == {'M', 'II'}
     s.close()
 
 def test_estacion_dependencia_region():
     from datasinca import Sinca
     s = Sinca()
     s.estacion = 296
-    assert 'Cochrane' in s.estacion.values
-    assert s.region == ['Aysén']
-    assert s.parametro is not None
+    assert 296 == s.estacion.index[0]
+    assert 'XI' == s.region.index[0]
     
-    params_cochrane = s.parametro
+    params_cochrane = s._cod_params
     s.region = 'M'
-    assert s.region == ['Metropolitana']
-    assert 'Parque O\'Higgins' in s.estacion.values
-    assert 'Cochrane' not in s.estacion.values
-    assert s.parametro != params_cochrane
+    assert 'M' == s._id_regiones[0]
+    assert 273 in s._id_estaciones
+    assert 296 not in s._id_estaciones
+    assert s._cod_params != params_cochrane
     s.close()
 
 def test_parametro_mapping():
@@ -63,4 +63,4 @@ def test_parametro_mapping():
     assert s._cod_params == ['TEMP']
     s.parametro = 'precipitacion'
     assert s._cod_params == ['RAIN']
-
+    s.close()

@@ -24,10 +24,8 @@ class Sinca:
 
         self._metadata = load_metadata(data_path)
 
-        self._set_variables(None, None, None, None, self._metadata.series.copy())
-        if any([region, estacion, parametro, altura]):
-            id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
-            self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
+        self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
 
 
         self.inicio = inicio
@@ -39,8 +37,9 @@ class Sinca:
 
         self._mensajes_cache = {}
 
-    def descarga(self, **kwargs):
-        kwargs = self._normalizar_inputs(kwargs)
+    def descarga(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
+                 muestreo=None, agregacion=None, transport=None):        
+        kwargs = self._normalizar_inputs(inicio, fin, region, estacion, parametro, altura, muestreo, agregacion, transport)
         inputs = {**self._build_params(), **kwargs}
 
         inicio, fin, series_sel, muestreo, agregacion, transport = self._parse_inputs(inputs)
@@ -107,7 +106,7 @@ class Sinca:
                 df_raw, plot_vars, unidad = procesar_request(req.text)
                 
                 if df_raw is None:
-                    print(end='\n\t')
+                    print('---> ', end='', flush=True)
                     self.logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est})")
                     continue
 
@@ -144,37 +143,38 @@ class Sinca:
             'inicio': self._inicio,
             'fin': self._fin,
             'series_sel': self._series_sel,
+            'id_regiones': self._id_regiones,
+            'id_estaciones': self._id_estaciones,
+            'cod_params': self._cod_params,
+            'altura': self._altura,
             'muestreo': self.muestreo,
             'agregacion': self.agregacion,
             'transport': self.transport,
             }
     
-    def _normalizar_inputs(self, inputs):
-        norm = inputs.copy()
-        region = norm.setdefault('region')
-        estacion = norm.setdefault('estacion')
-        parametro = norm.setdefault('parametro')
-        altura = norm.setdefault('altura')
+    def _normalizar_inputs(self, inicio, fin, region, estacion, parametro, altura, muestreo, agregacion, transport):
+        id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
 
-        _, _, _, _, series_sel = self._resolve_series(region, estacion, parametro, altura)
+        norm = dict()
+        norm['id_regiones'] = id_regiones
+        norm['id_estaciones'] = id_estaciones
+        norm['cod_params'] = cod_params
+        norm['altura'] = alturas
         norm['series_sel'] = series_sel
-        del norm['region'], norm['estacion'], norm['parametro'], norm['altura']
+
+        if inicio is not None:
+            norm['inicio'] = input_fecha(inicio)
+        if fin is not None:
+            norm['fin'] = input_fecha(fin)
+        if muestreo is not None:
+            norm['muestreo'] = input_muestreo(muestreo)
+        if agregacion is not None:
+            norm['agregacion'] = input_agregacion(agregacion)
+        if transport is not None:
+            norm['transport'] = transport
 
         for key, value in norm.items():
-            if key in ['inicio', 'fin']:
-                norm[key] = input_fecha(value)
-            elif key == 'muestreo':
-                norm['muestreo'] = input_muestreo(value)
-            elif key == 'agregacion':
-                norm['agregacion'] = input_agregacion(value)
-            elif key == 'transport':
-                pass
-            elif key in ['id_regiones', 'id_estaciones', 'cod_params', 'altura', 'series_sel']:
-                pass
-            else:
-                raise ValueError(f"Variable de entrada desconocida: {key}")
-            
-            if norm[key] is None: # estos se reemplazarán por defaults en el constructor, no deben quedar como None
+             if value is None: # estos se reemplazarán por defaults en el constructor, no deben quedar como None
                 del norm[key]
         return norm
     
@@ -207,7 +207,7 @@ class Sinca:
 
     @property
     def region(self):
-        return self._nombre_regiones
+        return self._ux_regiones
 
     @region.setter
     def region(self, value):
@@ -216,7 +216,7 @@ class Sinca:
 
     @property
     def estacion(self):
-        return self._estaciones_ux
+        return self._ux_estaciones
 
     @estacion.setter
     def estacion(self, value):
@@ -225,7 +225,7 @@ class Sinca:
 
     @property
     def parametro(self):
-        return self._alias_params
+        return self._ux_parametros
 
     @parametro.setter
     def parametro(self, value):
@@ -335,30 +335,34 @@ class Sinca:
             self._regiones_sel = None
             self._id_regiones = None
             self._nombre_regiones = None
+            self._ux_regiones = None
         else:
             self._regiones_sel = self._metadata.regiones.loc[id_regiones]
             self._id_regiones = self._regiones_sel.index.tolist()
             self._nombre_regiones = self._regiones_sel['nombre_region'].tolist()
+            self._ux_regiones = self._regiones_sel['nombre_region'].to_frame()
 
         if id_estaciones is None:
             self._estaciones_sel = None
             self._id_estaciones = None
             self._nombre_estaciones = None
-            self._estaciones_ux = None
+            self._ux_estaciones = None
         else:
             self._estaciones_sel = self._metadata.estaciones.loc[id_estaciones]
             self._id_estaciones = self._estaciones_sel.index.tolist()
             self._nombre_estaciones = self._estaciones_sel['nombre_est'].tolist()
-            self._estaciones_ux = self._metadata.estaciones.loc[self._id_estaciones]['nombre_est'].to_frame()
+            self._ux_estaciones = self._estaciones_sel['nombre_est'].to_frame()
 
         if cod_params is None:
             self._parametros_sel = None
             self._cod_params = None
             self._alias_params = None
+            self._ux_parametros = None
         else:
             self._parametros_sel = self._metadata.parametros.loc[cod_params]
             self._cod_params = self._parametros_sel.index.tolist()
             self._alias_params = self._parametros_sel['alias_param'].tolist()
+            self._ux_parametros = self._parametros_sel[['nombre_param','alias_param']]
 
         if alturas is None:
             self._altura = None
