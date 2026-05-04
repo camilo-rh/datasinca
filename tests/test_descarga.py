@@ -6,8 +6,8 @@ def test_descarga_estacion():
         res = s.descarga(
             estacion=273,
             parametro='MP2.5',
-            inicio='01012024',
-            fin='31012024'
+            inicio='20240101',
+            fin='20240131'
         )
     finally:
         s.close()

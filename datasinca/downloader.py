@@ -11,15 +11,15 @@ AGREGACION_DEFECTO = {'horario': 'horario',
                      'diario': 'diario',
                      'discreto': 'diario'}
 
-def build_url(inicio,fin,codparam,altura,codest,codreg,muestreo,tipo_param):
+def build_url(inicio,fin,codparam,altura,codest,codreg,registro,tipo_param):
         codaltura = str(altura if altura != "S/I" else 0).rjust(3, '0')
-        agregacion = AGREGACION_DEFECTO.get(muestreo, 'horario')
+        agregacion = AGREGACION_DEFECTO.get(registro, 'horario')
         url = f"{URL_DESCARGA}{codreg}/{codest}/"
 
         if tipo_param == 'cal':
-            url += f'Cal/{codparam}//{codparam}.{muestreo}.{agregacion}'
+            url += f'Cal/{codparam}//{codparam}.{registro}.{agregacion}'
         elif tipo_param == 'met':
-            url += f'Met/{codparam}//{muestreo}_{codaltura}'
+            url += f'Met/{codparam}//{registro}_{codaltura}'
             if codparam == 'WDIR':
                 url += '_spec'
         else:
@@ -59,8 +59,8 @@ class Transport:
         if not self._external_session and self.session:
             self.session.close()
 
-def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, muestreo, tipo_param, transport=None):
-    url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,muestreo,tipo_param)
+def descargar_serie(inicio, fin, cod_reg, cod_est, cod_param, altura, registro, tipo_param, transport=None):
+    url = build_url(inicio,fin,cod_param,altura,cod_est,cod_reg,registro,tipo_param)
     transport = transport or Transport()
     return transport.get(url)
 

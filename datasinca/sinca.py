@@ -9,7 +9,7 @@ import pandas as pd
 import logging
 import shutil
 from .metadata import load_metadata
-from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_muestreo
+from .inputs import input_param, input_fecha, input_region, input_est, input_altura, input_registro
 from .validators import _xval_estacion, _xval_parametro, _xval_altura
 from .downloader import Transport, descargar_serie, URL_ESTACION, descargar_mensaje_estacion
 from .parser import procesar_request, remcol
@@ -17,11 +17,11 @@ from .models import DataSINCA
 
 class Sinca:
     _allowed_attrs = {"inicio", "fin", "region", "estacion",
-                      "parametro", "altura", "muestreo",
+                      "parametro", "altura", "registro",
                       "transport", 'data_path', "log"}
     
     def __init__(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
-                 muestreo='horario', transport=None, data_path=None, log=False):
+                 registro='horario', transport=None, data_path=None, log=False):
         
         self._logger = logging.getLogger("datasinca")
         self._configure_logging(log)
@@ -34,7 +34,7 @@ class Sinca:
 
         self.inicio = inicio
         self.fin = fin
-        self.muestreo = muestreo
+        self.registro = registro
         self._external_transport = transport is not None
         self.transport = transport or Transport()
 
@@ -42,11 +42,11 @@ class Sinca:
         
         self._initialized = True
     def descarga(self, inicio=None, fin=None, region=None, estacion=None, parametro=None, altura=None,
-                 muestreo=None, transport=None):        
-        kwargs = self._normalizar_inputs(inicio, fin, region, estacion, parametro, altura, muestreo, transport)
+                 registro=None, transport=None):        
+        kwargs = self._normalizar_inputs(inicio, fin, region, estacion, parametro, altura, registro, transport)
         inputs = {**self._build_params(), **kwargs}
 
-        inicio, fin, series_sel, muestreo, transport = self._parse_inputs(inputs)
+        inicio, fin, series_sel, registro, transport = self._parse_inputs(inputs)
         filtros = {k:v for k,v in inputs.items() if not k in ['series_sel', 'transport']}
         self._logger.info(f"Inicio descarga SINCA | {filtros}")
 
@@ -98,19 +98,19 @@ class Sinca:
                         cod_param=cod_param,
                         cod_est=cod_est,
                         altura=altura_actual,
-                        muestreo=muestreo,
+                        registro=registro,
                         tipo_param=tipo_param,
                         transport=transport
                     )
                 except requests.exceptions.ConnectionError:
-                    self._logger.error(f"Error de conexión con SINCA: no se pudo verificar datos para {alias_param} en {nombre_est} ({id_est}) [muestreo={muestreo}, altura={altura_str}]")
+                    self._logger.error(f"Error de conexión con SINCA: no se pudo verificar datos para {alias_param} en {nombre_est} ({id_est}) [registro={registro}, altura={altura_str}]")
                     continue
                 print('Descargado. ... ', end='', flush=True)
                 df_raw, plot_vars, unidad = procesar_request(req.text)
                 
                 if df_raw is None:
                     print('---> ', end='', flush=True)
-                    self._logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est}) [muestreo={muestreo}, altura={altura_str}]")
+                    self._logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est}) [registro={registro}, altura={altura_str}]")
                     continue
 
                 columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
@@ -150,11 +150,11 @@ class Sinca:
             'id_estaciones': self._id_estaciones,
             'cod_params': self._cod_params,
             'altura': self._altura,
-            'muestreo': self.muestreo,
+            'registro': self.registro,
             'transport': self.transport,
             }
     
-    def _normalizar_inputs(self, inicio, fin, region, estacion, parametro, altura, muestreo, transport):
+    def _normalizar_inputs(self, inicio, fin, region, estacion, parametro, altura, registro, transport):
         id_regiones, id_estaciones, cod_params, alturas, series_sel = self._resolve_series(region, estacion, parametro, altura)
 
         norm = dict()
@@ -168,8 +168,8 @@ class Sinca:
             norm['inicio'] = input_fecha(inicio)
         if fin is not None:
             norm['fin'] = input_fecha(fin)
-        if muestreo is not None:
-            norm['muestreo'] = input_muestreo(muestreo)
+        if registro is not None:
+            norm['registro'] = input_registro(registro)
         if transport is not None:
             norm['transport'] = transport
 
@@ -182,9 +182,9 @@ class Sinca:
         inicio = inputs['inicio']
         fin = inputs['fin']
         series_sel = inputs['series_sel']
-        muestreo = inputs['muestreo']
+        registro = inputs['registro']
         transport = inputs['transport']
-        return inicio, fin, series_sel, muestreo, transport
+        return inicio, fin, series_sel, registro, transport
     
 
 
@@ -241,12 +241,12 @@ class Sinca:
         self._set_variables(id_regiones, id_estaciones, cod_params, alturas, series_sel)
 
     @property
-    def muestreo(self):
-        return self._muestreo
+    def registro(self):
+        return self._registro
 
-    @muestreo.setter
-    def muestreo(self, value):
-        self._muestreo = input_muestreo(value)
+    @registro.setter
+    def registro(self, value):
+        self._registro = input_registro(value)
 
     def __setattr__(self, name, value):
         # Permitir atributos públicos válidos
@@ -379,7 +379,7 @@ class Sinca:
             f"  estacion={self._id_estaciones},\n"
             f"  parametro={self._cod_params},\n"
             f"  altura={self._altura},\n"
-            f"  muestreo={self._muestreo},\n"
+            f"  registro={self._registro},\n"
             f"  inicio={self.inicio}, fin={self.fin}"
             ")"
         )
@@ -391,7 +391,7 @@ class Sinca:
             f"  estacion={self._nombre_estaciones},\n"
             f"  parametro={self._alias_params},\n"
             f"  altura={self._altura},\n"
-            f"  muestreo={self._muestreo},\n"
+            f"  registro={self._registro},\n"
             f"  inicio={self.inicio}, fin={self.fin}"
             ")"
         )

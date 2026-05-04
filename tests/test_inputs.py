@@ -1,7 +1,6 @@
 def test_default_values():
     from datasinca import Sinca
     from datetime import date
-    import pandas as pd
     s = Sinca()
 
     assert set(s._id_regiones) == set(['II', 'V', 'IV', 'IX', 'VIII', 'VII', 'III', 'VI', 'XIV', 'X', 'M', 'I', 'XI', 'XV','XII'])
@@ -10,22 +9,21 @@ def test_default_values():
     assert s.inicio == date.today().strftime('%d/%m/%Y')
     assert s.fin == date.today().strftime('%d/%m/%Y')
     assert len(s._altura) > 4 and 'S/I' in s._altura
-    assert s._muestreo == 'horario'
-    assert s._agregacion is None
+    assert s._registro == 'horario'
     s.close()
 
 def test_basic_inputs():
     from datasinca import Sinca
     from datetime import date
     s = Sinca()
-    s.inicio = '01012024'
-    s.fin = '31012024'
+    s.inicio = '20240101'
+    s.fin = '20240131'
     s.altura = 3
-    s.muestreo = 'diario'
+    s.registro = 'diario'
     assert s.inicio == date(2024, 1, 1).strftime('%d/%m/%Y')
     assert s.fin == date(2024, 1, 31).strftime('%d/%m/%Y')
     assert s._altura == [3]
-    assert s._muestreo == 'diario'
+    assert s._registro == 'diario'
     s.close()
 
 def test_region_mapping():

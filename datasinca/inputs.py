@@ -1,14 +1,14 @@
 import unicodedata
 import datetime
 
-MUESTREOS_VALIDOS = {'horario', 'diario', 'discreto'}
+REGISTROS_VALIDOS = {'horario', 'diario', 'discreto'}
 
-def input_muestreo(muestreo):
-    if muestreo is None:
-        muestreo = 'horario' # valor por defecto
-    elif muestreo not in MUESTREOS_VALIDOS:
-        raise ValueError(f"Muestreo no válido: {muestreo}")
-    return muestreo
+def input_registro(registro):
+    if registro is None:
+        registro = 'horario' # valor por defecto
+    elif registro not in REGISTROS_VALIDOS:
+        raise ValueError(f"Registro no válido: {registro}")
+    return registro
 
 def input_altura(altura):
     if isinstance(altura, list) and all(isinstance(a, int) for a in altura):
@@ -145,23 +145,23 @@ def input_fecha(fecha, permitir_futuro=False):
             if len(parts) != 3:
                 raise ValueError("Formato de fecha inválido")
 
-            d, m, y = parts
+            y, m, d = parts
             if len(y) == 2:
-                fmt = f'%d{sep}%m{sep}%y'
+                fmt = f'%y{sep}%m{sep}%d'
             elif len(y) == 4:
-                fmt = f'%d{sep}%m{sep}%Y'
+                fmt = f'%Y{sep}%m{sep}%d'
             else:
                 raise ValueError("Formato de año inválido")
 
         elif fecha.isdigit():
             if len(fecha) == 6:
-                fmt = '%d%m%y'
+                fmt = '%y%m%d'
             elif len(fecha) == 8:
-                fmt = '%d%m%Y'
+                fmt = '%Y%m%d'
             else:
-                raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+                raise ValueError("Formato de fecha inválido. Debe ser yy/mm/dd, yyyy/mm/dd, yy-mm-dd, yyyy-mm-dd, yymmdd o yyyymmdd")
         else:
-            raise ValueError("Formato de fecha inválido. Debe ser dd/mm/yy, dd/mm/yyyy, ddmmyy o ddmmyyyy")
+            raise ValueError("Formato de fecha inválido. Debe ser yy/mm/dd, yyyy/mm/dd, yy-mm-dd, yyyy-mm-dd, yymmdd o yyyymmdd")
         fecha = datetime.datetime.strptime(fecha, fmt).date()
     else:
         raise TypeError("Tipo de fecha no soportado")
