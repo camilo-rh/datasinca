@@ -1,19 +1,53 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "datasinca"
 version = "0.1.0"
-description = "API para acceder a datos SINCA"
+description = "Python client for downloading SINCA environmental data"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+
 authors = [
-    {name = "Camilo Ramírez Herrera"} 
-]
-dependencies = [
-    "pandas",
-    "requests",
-    "termcolor"
+    { name = "Camilo Ramírez Herrera", email = "camilo.esteban.ramirezh@gmail.com" }
 ]
 
+license = { file = "LICENSE" }
+
+dependencies = [
+    "numpy>=1.23,<2.0",
+    "pandas>=1.5,<3.0",
+    "requests>=2.25",
+    "termcolor>=2.0",
+    "lxml"
+    ]
+
+keywords = ["air quality", "sinca", "chile", "environment", "data"]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+[project.urls]
+Homepage = "https://github.com/tuusuario/datasinca"
+
 [tool.setuptools.packages.find]
+where = ["."]   
 include = ["datasinca*"]
+
+[tool.setuptools.package-data]
+datasinca = ["data/*.csv"]
+
+
+[project.optional-dependencies]
+modern = [
+    "pandas>=2.3",
+    "numpy>=2.0"
+]
+
+dev = [
+    "pytest",
+    "tox"
+]

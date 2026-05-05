@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  stable:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: pip install uv tox
+
+      - name: Run stable matrix
+        run: tox
+
+  latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: pip install uv tox
+
+      - name: Run latest compat
+        run: tox -e latest
