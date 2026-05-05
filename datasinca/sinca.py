@@ -50,6 +50,10 @@ class Sinca:
         filtros = {k:v for k,v in inputs.items() if not k in ['series_sel', 'transport']}
         self._logger.info(f"Inicio descarga SINCA | {filtros}")
 
+        if inicio == fin and registro in ["diario", "discreto"]:
+            self._logger.warning("Rango ajustado: 'registro=diario' requiere al menos 2 días. Se ajusta fin = inicio + 1 día")
+            fin = inicio + pd.Timedelta(days=1)
+
         inicio = inicio.strftime('%y%m%d')
         fin = fin.strftime('%y%m%d')
 
@@ -108,11 +112,15 @@ class Sinca:
                 print('Descargado. ... ', end='', flush=True)
                 df_raw, plot_vars, unidad = procesar_request(req.text)
                 
-                if df_raw is None:
+                if plot_vars is None and df_raw == 'vacio':
                     print('---> ', end='', flush=True)
-                    self._logger.warning(f"Sin datos: {alias_param} en {nombre_est} ({id_est}) [registro={registro}, altura={altura_str}]")
+                    self._logger.warning(f"Sin datos (respuesta vacia): {alias_param} en {nombre_est} ({id_est}) [registro={registro}, altura={altura_str}]")
                     continue
-
+                elif plot_vars is None and df_raw == 'psgraph':
+                    print('---> ', end='', flush=True)
+                    self._logger.warning(f"Sin datos (combinación inválida o no disponible): {alias_param} en {nombre_est} ({id_est}) [registro={registro}, altura={altura_str}]")
+                    continue
+                
                 columna = (nombre_comuna, nombre_est, alias_param, unidad, altura_str) # clave de la serie (MultiIndex)
                 serie_datos, serie_validacion = remcol(df_raw, columna, plot_vars) # colapsar columnas a (serie de datos + serie de validacion)
                 print('Procesado')

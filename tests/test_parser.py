@@ -54,6 +54,6 @@ def test_procesar_request_sin_datos():
 
     df_raw, plot_vars, unidad = procesar_request(raw_text)
 
-    assert df_raw is None
+    assert df_raw == 'psgraph'
     assert plot_vars is None
     assert unidad is None
