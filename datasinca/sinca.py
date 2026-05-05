@@ -13,7 +13,7 @@ from .inputs import input_param, input_fecha, input_region, input_est, input_alt
 from .validators import _xval_estacion, _xval_parametro, _xval_altura
 from .downloader import Transport, descargar_serie, URL_ESTACION, descargar_mensaje_estacion
 from .parser import procesar_request, remcol
-from .models import DataSINCA
+from .models import DataSinca
 
 class Sinca:
     _allowed_attrs = {"inicio", "fin", "region", "estacion",
@@ -138,7 +138,7 @@ class Sinca:
             df_datos = pd.DataFrame()
             df_validacion = pd.DataFrame()
 
-        return DataSINCA(df_datos, df_validacion, self._metadata)
+        return DataSinca(df_datos, df_validacion, self._metadata)
     
     def set(self, **kwargs):
         for key, value in kwargs.items():

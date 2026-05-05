@@ -3,7 +3,7 @@ import re
 from .inputs import input_est, input_param, input_fecha
 import warnings
 
-class DataSINCA:
+class DataSinca:
     def __init__(self, data, validacion, metadata):
         self.data = data # dataframe con datos de la serie, indexado por datetime
         self.validacion = validacion # dataframe con el estado de validación de cada dato, indexado por datetime
@@ -26,7 +26,7 @@ class DataSINCA:
 
     def conteo_validacion_por_serie(self):
         if self.tipo() in ['meteo', None]:
-            raise ValueError("Este DataSINCA no contiene variables con validación")
+            raise ValueError("Este DataSinca no contiene variables con validación")
         elif self.tipo() == 'mixto':
             warnings.warn("El conteo de validación solo se aplica a los contaminantes.", UserWarning, stacklevel=2)
             ds = self.contaminantes()
@@ -71,14 +71,14 @@ class DataSINCA:
     def filtrar_validacion(self, nivel, fill_value=None): #'validado', 'preliminar', 'novalidado'
         tipo = self.tipo()
         if tipo == 'meteo':
-            raise ValueError("Este DataSINCA no contiene variables con validación")
+            raise ValueError("Este DataSinca no contiene variables con validación")
         elif tipo == 'mixto':
-             warnings.warn("Este DataSINCA contiene variables meteorológicas y contaminantes. La validación solo se aplicará a los contaminantes.")
+             warnings.warn("Este DataSinca contiene variables meteorológicas y contaminantes. La validación solo se aplicará a los contaminantes.")
 
         if isinstance(nivel, str):
             nivel = [nivel]
         mask = self.validacion.isin(nivel)
-        return DataSINCA(self.data.where(mask, other=fill_value),
+        return DataSinca(self.data.where(mask, other=fill_value),
                          self.validacion.where(mask, other=fill_value),
                          self._metadata)
 
@@ -98,7 +98,7 @@ class DataSINCA:
         altura = _normalize_altura(altura)
         comuna = comuna if comuna is not None else slice(None)
         unidad = unidad if unidad is not None else slice(None)
-        return DataSINCA(self.data.loc[:, idx[comuna, estacion, parametro, unidad, altura]],
+        return DataSinca(self.data.loc[:, idx[comuna, estacion, parametro, unidad, altura]],
                          self.validacion.loc[:, idx[comuna, estacion, parametro, unidad, altura]],
                          self._metadata)
 
@@ -112,19 +112,19 @@ class DataSINCA:
 
         mask = cols.get_level_values('estacion').str.contains(pattern, case=False, na=False, regex=True)
 
-        return DataSINCA(self.data.loc[:, mask],
+        return DataSinca(self.data.loc[:, mask],
                         self.validacion.loc[:, mask],
                         self._metadata)
 
     def swap_levels(self, nivel1, nivel2):
-        return DataSINCA(self.data.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
+        return DataSinca(self.data.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
                          self.validacion.swaplevel(nivel1, nivel2, axis=1).sort_index(axis=1),
                          self._metadata)
 
     def drop_empty_columns(self):
         data = self.data.dropna(axis=1, how='all').copy()
         estado = self.validacion.loc[:, data.columns].copy()
-        return DataSINCA(data,
+        return DataSinca(data,
                          estado,
                          self._metadata)
 
@@ -153,7 +153,7 @@ class DataSINCA:
 
         dfv = self.validacion.copy()
         dfv.columns = flat
-        return DataSINCA(df, dfv, self._metadata)
+        return DataSinca(df, dfv, self._metadata)
 
     def flatten_nonconstant_levels(self, sep='|'):
         columns = self.data.columns
@@ -164,7 +164,7 @@ class DataSINCA:
     def entre(self, inicio=None, fin=None):
         inicio = input_fecha(inicio, permitir_futuro=True)
         fin = input_fecha(fin, permitir_futuro=True)  
-        return DataSINCA(self.data.loc[inicio:fin],
+        return DataSinca(self.data.loc[inicio:fin],
                          self.validacion.loc[inicio:fin],
                          self._metadata)
     
@@ -176,7 +176,7 @@ class DataSINCA:
         elif self.contiene_contam():
             return "contam"
         elif self.data.empty:
-            warnings.warn("El DataSINCA está vacío. No se puede determinar si contiene datos meteorológicos o contaminantes.", UserWarning)
+            warnings.warn("El DataSinca está vacío. No se puede determinar si contiene datos meteorológicos o contaminantes.", UserWarning)
             return None
 
     def contiene_meteo(self):
@@ -200,7 +200,7 @@ class DataSINCA:
         return alias_meteo
     
     def __repr__(self):
-        return f"DataSINCA(data.shape={self.data.shape})"
+        return f"DataSinca(data.shape={self.data.shape})"
 
 
 
