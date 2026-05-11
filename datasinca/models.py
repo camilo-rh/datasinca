@@ -25,14 +25,17 @@ class DataSinca:
         return self.conteo_validacion_por_serie().sum().to_frame(name="conteo")
 
     def conteo_validacion_por_serie(self):
-        if self.tipo() in ['meteo', None]:
+        series_sin_validacion = self.validacion.isna().all()
+        if series_sin_validacion.all():
             raise ValueError("Este DataSinca no contiene variables con validación")
-        elif self.tipo() == 'mixto':
-            warnings.warn("El conteo de validación solo se aplica a los contaminantes.", UserWarning, stacklevel=2)
-            ds = self.contaminantes()
-        else:
-            ds = self
-        return ds.validacion.apply(lambda x: x.value_counts()).astype('Int64').T
+        elif series_sin_validacion.any():
+             warnings.warn("El conteo de validación solo se aplica a los datos con información de validación."
+                           " Actualmente, los parámetros meteorológicos del SINCA no presentan estados de validación.",
+                           UserWarning, stacklevel=2)
+             
+        conteo = self.validacion.apply(lambda x: x.value_counts()).astype('Int64').T
+        conteo.loc[series_sin_validacion, :] = pd.NA
+        return conteo
 
     def resumen(self):
         """
@@ -69,11 +72,11 @@ class DataSinca:
         return self.sel(parametro=conts), self.sel(parametro=meteo)
     
     def filtrar_validacion(self, nivel, fill_value=None): #'validado', 'preliminar', 'novalidado'
-        tipo = self.tipo()
-        if tipo == 'meteo':
+        if not self.validacion.notna().any().any():
             raise ValueError("Este DataSinca no contiene variables con validación")
-        elif tipo == 'mixto':
-             warnings.warn("Este DataSinca contiene variables meteorológicas y contaminantes. La validación solo se aplicará a los contaminantes.")
+        elif self.validacion.isna().all().any():
+             warnings.warn("Solo se filtrarán los datos con información de validación."
+                           "Actualmente, los parámetros meteorológicos del SINCA no presentan estados de validación.")
 
         if isinstance(nivel, str):
             nivel = [nivel]
